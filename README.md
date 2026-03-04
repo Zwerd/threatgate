@@ -1,4 +1,4 @@
-# ThreatGate v5.0
+# ThreatGate v2.0 Beta — Commander Edition
 
 ThreatGate is a **modern IOC & YARA Management Platform** built for SOC operations. Analysts submit indicators, ThreatGate stores them in a SQLite database, and security devices ingest **plain-text feeds** for enforcement. Designed for **air-gapped / offline** environments.
 
@@ -6,18 +6,21 @@ ThreatGate is a **modern IOC & YARA Management Platform** built for SOC operatio
 
 ## Features
 
-- **Authentication & User Management**: Local accounts, optional LDAP/AD integration, admin roles
+- **Authentication & User Management**: Local accounts, optional LDAP/AD integration, admin roles, profile (display name, avatar), change password, optional "must change password" on first login
 - **MISP Integration**: Automatic IOC pull from a local MISP instance with configurable intervals
-- **Champs Analysis 5.0**: Analyst leaderboard, streak scoring, team goals, rank tracking, spotlight
-- **Feed Pulse**: Real-time incoming/outgoing IOC monitoring with anomaly detection and exclusions
+- **Champs Analysis**: Analyst leaderboard, multiple scoring methods (Weighted, Flat, By Type, Campaign Focus, Time Decay, Quality, Goal-Based, Smart/Effort), streak bonuses, team goals, rank tracking, activity spotlight, news ticker
+- **Feed Pulse**: Real-time incoming/outgoing IOC monitoring with anomaly detection and analyst exclusions
 - **Campaign Management**: Visual graph (vis.js) of campaigns and associated IOCs
-- **YARA Rule Management**: Upload, approval workflow, quality scoring, campaign linking
+- **YARA Rule Management**: Upload, approval workflow, quality scoring (10–50 pts), campaign linking
+- **Intelligence Reports**: Period-based reports (day/week/month) with KPIs, type distribution, feed health, analyst activity, export to PDF
 - **Multi-vendor Feeds**: Standard, Palo Alto (EDL), Checkpoint (CSV) feed formats
 - **SSL/TLS & HTTPS**: Certificate upload via Admin UI, automatic HTTP-to-HTTPS redirect
-- **IOC History**: Full lifecycle tracking per IOC (created, edited, deleted, expired, excluded)
-- **Allowlist / Safety Net**: Prevent blocking of critical infrastructure
+- **IOC History**: Full lifecycle tracking per IOC (created, edited, deleted, expired, excluded, unexcluded)
+- **IOC Notes**: Analyst notes per IOC (type+value) for knowledge sharing; notes survive IOC deletion cycles
+- **Allowlist / Safety Net**: Admin-managed allowlist (raw text); prevents blocking of critical infrastructure
 - **Sanity Checks**: Automatic anomaly detection (local IPs, short domains, critical infra)
-- **GeoIP Intelligence**: Country, TLD, and email domain analytics from active IOCs
+- **GeoIP Intelligence**: Country, TLD, and email domain analytics from active IOCs; Rare Find badges for first-ever country/TLD/email domain
+- **CEF / Syslog**: Optional CEF-format audit logging with 48-hour local rotation and UDP syslog forwarding (Admin Settings)
 - **Multi-language**: English and Hebrew (i18n)
 - **100% Offline**: No external network calls. All assets served locally
 
@@ -40,6 +43,7 @@ ThreatGate is a **modern IOC & YARA Management Platform** built for SOC operatio
 - [Project Architecture](#project-architecture)
 - [Offline Deployment](#offline-deployment)
 - [Troubleshooting](#troubleshooting)
+- [Version](#version)
 
 ---
 
@@ -132,11 +136,8 @@ Real-time dashboard with IOC counts, Top Countries / TLDs / Email Domains leader
 ### Search & Investigate
 Full-text search across IOCs with filters (value, type, ticket, user, date, expiration status). Edit, delete, view history.
 
-### Submit IOC
-Single IOC submission with auto-type detection, input cleaning (refanger), TTL, campaign assignment, allowlist validation.
-
-### Bulk Upload
-CSV and TXT file import with preview/staging, auto-detection, metadata extraction, and conflict handling.
+### Submit IOCs
+Single and bulk submission: auto-type detection, input cleaning (refanger), TTL, campaign assignment, allowlist validation. Bulk: CSV and TXT import with preview/staging, auto-detection, metadata extraction, and conflict handling.
 
 ### Feed Pulse
 Real-time feed health monitoring: incoming IOCs, outgoing (expired), deleted, sanity anomalies with exclude/un-exclude.
@@ -153,11 +154,18 @@ Interactive vis.js graph of campaigns linked to IOCs and YARA rules. Create, lin
 ### Hunter's Playbook
 Customizable quick-links panel for external investigation tools.
 
+### Intelligence Reports
+Period-based reports (day/week/month): executive KPIs, type distribution, feed health score, analyst activity, comparisons vs. previous period. Export to PDF (html2canvas + jsPDF).
+
+### Profile & Change Password
+User profile (display name, avatar, role description, email) and change-password flow; admins can enforce "must change password" for users.
+
 ### Admin Panel
-- **Users**: Create, edit, deactivate users. Avatar management. System users marked separately
-- **Settings**: Auth mode (local/LDAP), MISP integration configuration
+- **Users**: Create, edit, deactivate users; avatar management; system users marked separately
+- **Settings**: Auth mode (local/LDAP), LDAP config, MISP integration, CEF/Syslog UDP (optional)
+- **Allowlist**: Edit raw allowlist file (known-good / critical assets)
 - **Certificate**: SSL/TLS certificate upload for HTTPS
-- **Champs Config**: Scoring method, team goals, ticker messages
+- **Scoring**: Champs scoring method (Weighted, Flat, By Type, Campaign Focus, Time Decay, Quality, Goal-Based, Smart)
 
 ---
 
@@ -251,17 +259,18 @@ SQLite database: `data/threatgate.db`
 
 | Table | Description |
 |-------|-------------|
-| `users` | User accounts (username, password_hash, source, is_admin, is_active) |
-| `user_profiles` | Display name, avatar |
-| `user_sessions` | Login/logout tracking |
-| `iocs` | IOC records (type, value, analyst, ticket_id, comment, expiration, campaign, tags, geo fields) |
-| `ioc_history` | Lifecycle events per IOC (created, edited, deleted, expired, excluded, unexcluded) |
-| `campaigns` | Campaign metadata |
-| `yara_rules` | YARA rule metadata + quality score |
-| `sanity_exclusions` | Analyst-excluded Feed Pulse anomalies |
-| `system_settings` | Key-value store (auth, LDAP, MISP, Champs config) |
-| `activity_events` | Champs activity log (IOC submissions, deletions, rank changes) |
-| `team_goals` | Champs team goals |
+| `users` | User accounts (username, password_hash, source, is_admin, is_active, must_change_password, last_login_at) |
+| `user_profiles` | Display name, avatar_path, role_description, email |
+| `user_sessions` | Login/logout tracking (IP, login_at, logout_at) |
+| `iocs` | IOC records (type, value, analyst, ticket_id, comment, expiration, campaign_id, tags, user_id, submission_method, country_code, tld, email_domain, rare_find_type) |
+| `ioc_history` | Lifecycle events per IOC (created, edited, deleted, expired, excluded, unexcluded); payload JSON |
+| `ioc_notes` | Analyst notes per IOC (ioc_type, ioc_value, user_id, content); keyed by type+value, survive deletion |
+| `campaigns` | Campaign metadata (name, description, dir ltr/rtl) |
+| `yara_rules` | YARA rule metadata, quality_points, status (pending/approved/rejected) |
+| `sanity_exclusions` | Analyst-excluded Feed Pulse anomalies (value, ioc_type, anomaly_type) |
+| `system_settings` | Key-value store (auth, LDAP, MISP, Champs, syslog UDP) |
+| `activity_events` | Champs activity log (ioc_submit, yara_upload, rank_change, goal_progress, deletion) |
+| `team_goals` | Champs team goals (target, current, period, goal_type) |
 | `champ_rank_snapshots` | Daily rank snapshots for trend tracking |
 
 ---
@@ -288,7 +297,8 @@ SQLite database: `data/threatgate.db`
 - **Auth Mode**: `local_only`, `ldap_only`, `ldap_with_local_fallback`
 - **LDAP**: URL, Base DN, Bind DN, User Filter
 - **MISP**: URL, API key, filters, sync interval, TTL, Champs exclusion
-- **Champs**: Scoring method, ticker messages, team goals
+- **Syslog / CEF**: Optional UDP syslog (host, port) for CEF audit events
+- **Champs**: Scoring method (Admin > Scoring), ticker messages, team goals
 
 ---
 
@@ -341,6 +351,8 @@ python create_lab_users.py
 
 ## Admin Scripts
 
+When using a full deployment package (e.g. offline installer), the following scripts may be provided:
+
 | Script | Description |
 |--------|-------------|
 | `setup.sh` | Production installer (online/offline/upgrade) |
@@ -353,6 +365,8 @@ python create_lab_users.py
 | `misp_sync_job.py` | MISP sync job (runs via systemd timer) |
 | `http_redirect.py` | HTTP-to-HTTPS redirect server |
 | `start.sh` | Gunicorn launcher with auto SSL detection |
+
+For development, only the application is required: `python app.py` (see [Local Development](#local-development)).
 
 ---
 
@@ -367,7 +381,7 @@ python create_lab_users.py
 - **Input Validation**: Regex validation on all IOC types, refanger for obfuscated input
 - **SQL Injection**: SQLAlchemy ORM with parameterized queries
 - **Allowlist**: Prevents blocking critical infrastructure assets
-- **Audit Log**: All admin and IOC actions logged to `data/audit.log`
+- **Audit Log**: CEF format; local file with 48-hour rotation; optional UDP syslog (Admin > Settings)
 - **Feed Endpoints**: Public (no auth). Restrict access via firewall rules
 - **Offline**: No external network calls. All assets local
 
@@ -381,31 +395,38 @@ python create_lab_users.py
 app.py              Main Flask application
 models.py           SQLAlchemy models
 extensions.py       Flask extensions (db)
-constants.py        Application constants
+constants.py        Application constants (VERSION, IOC_FILES, limits)
 config.py           Configuration (optional)
 
 routes/
-  admin.py          Admin API (users, settings, certificate, MISP)
+  admin.py          Admin API (users, settings, certificate, MISP, allowlist)
+  auth.py           Login, logout, profile, change password, LDAP health
   champs.py         Champs leaderboard, team goals, ticker
-  yara.py           YARA rule management API
   campaigns.py      Campaign CRUD and graph API
   feeds.py          Feed generation (standard, PA, CP, YARA)
+  ioc.py            IOC submit (single/bulk) API
+  reports.py        Intelligence reports (period-based stats, PDF export)
+  search.py         Search, edit, delete, history API
+  stats.py           Live stats counts, geo/TLD/email intelligence
+  yara.py            YARA rule management API
 
 utils/
-  validation.py     IOC regex validation and type detection
-  refanger.py       Input cleaning (defang reversal)
-  allowlist.py      Allowlist loading and checking
-  feed_helpers.py   Feed formatting helpers
-  yara_utils.py     YARA file path utilities
+  validation.py       IOC regex validation and type detection
+  refanger.py         Input cleaning (defang reversal)
+  allowlist.py        Allowlist loading and checking
+  feed_helpers.py     Feed formatting helpers
+  yara_utils.py       YARA file path utilities
   validation_warnings.py   IOC submission warnings
   validation_messages.py   Error message constants
-  sanity_checks.py  Feed Pulse anomaly detection
-  auth.py           Password hashing (scrypt)
-  decorators.py     @login_required, @admin_required
-  ldap_auth.py      LDAP/AD authentication
-  champs.py         Analyst scoring, ranking, badges, XP
-  misp_sync.py      MISP fetch, validate, import, lock
-  ioc_decode.py     Text extraction for bulk IOC parsing
+  sanity_checks.py    Feed Pulse anomaly detection
+  auth.py             Password hashing (scrypt)
+  decorators.py       @login_required, @admin_required
+  ldap_auth.py        LDAP/AD authentication
+  champs.py           Analyst scoring, ranking, badges, XP
+  misp_sync.py        MISP fetch, validate, import, lock
+  ioc_decode.py       Text extraction for bulk IOC parsing
+  cef_logger.py       CEF audit logging (local file + optional UDP syslog)
+  mentorship.py       SOC Mentorship Insights Engine (behavioral analysis, 45 rules)
 ```
 
 ### Frontend
@@ -416,28 +437,37 @@ Single-Page Application in `templates/index.html` with lazy-loaded JS modules:
 |--------|---------|
 | `static/js/api.js` | Centralized API client |
 | `static/js/utils.js` | HTML escaping, clipboard |
+| `static/js/app.js` | Tab routing, i18n, theme |
 | `static/js/live-stats.js` | Dashboard, charts, intelligence |
 | `static/js/search.js` | Search, edit, delete, history |
+| `static/js/submit.js` | Single/bulk IOC submission UI |
 | `static/js/champs.js` | Leaderboard, spotlight, ticker |
 | `static/js/feed-pulse.js` | Feed health, anomalies, exclusions |
 | `static/js/yara.js` | YARA management |
 | `static/js/campaigns.js` | Campaign graph (vis.js) |
-| `static/js/playbook-edit.js` | Playbook site management |
+| `static/js/playbook.js` / `playbook-edit.js` | Playbook view and site management |
+| `static/js/reports.js` | Intelligence reports (period picker, charts, PDF export) |
+| `static/js/profile.js` | User profile and avatar |
 
-Vendor libraries (all local, no CDN): Tailwind, Chart.js, vis.js, marked, turndown, Prism.
+Vendor libraries (all local, no CDN): Tailwind, Chart.js, vis.js, marked, turndown, Prism, html2canvas, jsPDF.
 
 ### Templates
 
 ```
 templates/
-  index.html          Main SPA
+  index.html          Main SPA (Commander Edition)
   login.html          Login page
+  change_password.html  Forced password change
+  profile.html        User profile (display name, avatar, role, email)
+  base_app.html       (if used)
   admin/
     base.html         Admin layout
     users.html        User management
-    settings.html     System settings (Auth, LDAP, MISP)
-    certificate.html  SSL/TLS certificate
-    champs.html       Champs admin
+    settings.html     System settings (Auth, LDAP, MISP, Syslog)
+    allowlist.html    Allowlist editor
+    certificate.html SSL/TLS certificate
+    scoring.html      Champs scoring method
+    403.html          Forbidden
 ```
 
 ---
@@ -531,5 +561,6 @@ sudo ./setup.sh --offline      # Fresh install
 
 ## Version
 
-**ThreatGate v5.0**
-Last updated: **February 2026**
+**ThreatGate v2.0 Beta — Commander Edition**  
+Single source of version: `constants.py` → `VERSION` (used in UI and docs).  
+Last updated: **March 2026**
