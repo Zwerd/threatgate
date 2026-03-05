@@ -42,9 +42,9 @@
     "tags_placeholder": "malware, phishing",
     "ttl": "TTL *",
     "campaign": "קמפיין (אופציונלי)",
-    "none": "— ללא —",
+    "none": "- ללא -",
     "assign_to": "הקצה למשתמש",
-    "me": "— אני —",
+    "me": "- אני -",
     "button": "שלח IOC"
   },
   "search": {

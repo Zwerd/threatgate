@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 CEF_VERSION = '0'
 DEVICE_VENDOR = 'ThreatGate'
 DEVICE_PRODUCT = 'IOC-Platform'
-DEVICE_VERSION = '5.3'
+DEVICE_VERSION = '2.0'
 
 
 def _cef_escape(val: str) -> str:

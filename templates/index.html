@@ -7,9 +7,9 @@
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <!-- Fonts: system fallbacks only (no external requests). See style.css for Inter/JetBrains Mono fallbacks. -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flag-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind-built.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/prism-tomorrow.min.css') }}">
-    <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/vis-network.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
@@ -361,13 +361,13 @@
                                 <div>
                                     <label class="block text-xs font-semibold mb-0.5" data-i18n="submit.campaign">Campaign</label>
                                     <select id="iocCampaignSelect" class="w-full h-8 text-sm">
-                                        <option value="" data-i18n="submit.none">— None —</option>
+                                        <option value="" data-i18n="submit.none">- None -</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold mb-0.5" data-i18n="submit.assign_to">Assign to user</label>
                                     <select id="iocAssignTo" class="w-full h-8 text-sm">
-                                        <option value="" data-i18n="submit.me">— Me —</option>
+                                        <option value="" data-i18n="submit.me">- Me -</option>
                                     </select>
                                 </div>
                             </div>
@@ -397,7 +397,7 @@
                         <div class="flex flex-col">
                             <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.campaign">Campaign</label>
                             <select id="txtCampaignSelect" class="h-8 text-sm w-32">
-                                <option value="" data-i18n="submit.none">— None —</option>
+                                <option value="" data-i18n="submit.none">- None -</option>
                             </select>
                         </div>
                         <div class="flex flex-col flex-1 min-w-[120px]">
@@ -430,7 +430,7 @@
                             <div class="flex flex-col">
                                 <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.campaign">Campaign</label>
                                 <select id="pasteCampaignSelect" class="h-8 text-sm w-32">
-                                    <option value="" data-i18n="submit.none">— None —</option>
+                                    <option value="" data-i18n="submit.none">- None -</option>
                                 </select>
                             </div>
                             <div class="flex flex-col flex-1 min-w-[120px]">
@@ -464,7 +464,7 @@
                             <div class="flex flex-col">
                                 <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.campaign">Campaign</label>
                                 <select id="csvCampaignSelect" class="h-8 text-sm w-32">
-                                    <option value="" data-i18n="submit.none">— None —</option>
+                                    <option value="" data-i18n="submit.none">- None -</option>
                                 </select>
                             </div>
                             <div class="flex flex-col flex-1 min-w-[120px]">
@@ -592,7 +592,7 @@
                         <div>
                             <label class="block mb-2 text-sm font-semibold" data-i18n="yara.campaign">Campaign (optional)</label>
                             <select id="yaraCampaignSelect" class="w-full">
-                                <option value="" data-i18n="submit.none">— None —</option>
+                                <option value="" data-i18n="submit.none">- None -</option>
                             </select>
                         </div>
                     </form>
@@ -1159,7 +1159,7 @@
                 <div>
                     <label class="block mb-2 text-sm font-semibold" data-i18n="submit.assign_to">Assign to user</label>
                     <select id="editAssignTo" class="w-full bg-tertiary border border-white/10 rounded px-3 py-2">
-                        <option value="" data-i18n="submit.me">— Me —</option>
+                        <option value="" data-i18n="submit.me">- Me -</option>
                     </select>
                 </div>
                 <div class="flex gap-2 justify-end">

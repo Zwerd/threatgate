@@ -1,5 +1,5 @@
 /**
- * Shared JS helpers (Step 8 — extracted from index.html).
+ * Shared JS helpers (Step 8 - extracted from index.html).
  * Exposed on window so inline script and other modules can use them.
  */
 (function(global) {

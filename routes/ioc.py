@@ -1,4 +1,4 @@
-"""IOC submission routes — extracted from app.py."""
+"""IOC submission routes - extracted from app.py."""
 
 import json
 import re
@@ -239,7 +239,7 @@ def _parse_txt_metadata(metadata_raw):
     analyst = None
     ticket_id = None
 
-    # Step A: Date at end — e.g. "1/12/2026 9:47:43 PM" or "12/28/2025"
+    # Step A: Date at end - e.g. "1/12/2026 9:47:43 PM" or "12/28/2025"
     date_time_end = re.compile(
         r'(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)\s*$',
         re.IGNORECASE
@@ -277,7 +277,7 @@ def _parse_txt_metadata(metadata_raw):
         analyst = m.group(1).strip().lower()
         s = s[:m.start()].strip()
 
-    # Step C: Ticket ID at start — number followed by hyphen (e.g. "45036 - ...")
+    # Step C: Ticket ID at start - number followed by hyphen (e.g. "45036 - ...")
     ticket_start = re.compile(r'^\s*(\d+)\s*-\s*')
     m = ticket_start.match(s)
     if m:
@@ -398,7 +398,7 @@ def submit_ioc():
         if is_blocked and getattr(current_user, 'is_admin', False):
             warnings.append(msg)
         
-        # Check allowlist (Safety Net) — hard block, no exceptions
+        # Check allowlist (Safety Net) - hard block, no exceptions
         is_blocked, reason = check_allowlist(value, ioc_type)
         if is_blocked:
             return jsonify({

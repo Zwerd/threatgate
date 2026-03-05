@@ -14,23 +14,23 @@
         <div class="bg-black/20 border border-white/10 rounded-lg p-4">
             <h4 class="font-semibold mb-2">Supported formats</h4>
             <ul class="text-secondary text-sm list-disc pl-5 space-y-1">
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">google.com</code> — suffix match (google.com + all subdomains)</li>
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">suffix:google.com</code> — explicit suffix match</li>
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">domain:example.com</code> — exact domain only (no subdomains)</li>
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">tld:gov</code> — all domains under .gov TLD</li>
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">8.8.8.8</code> — exact IP address</li>
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">ip:8.8.8.8</code> — explicit exact IP</li>
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">10.0.0.0/8</code> — CIDR range (all IPs in subnet)</li>
-                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">cidr:10.0.0.0/8</code> — explicit CIDR range</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">google.com</code> - suffix match (google.com + all subdomains)</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">suffix:google.com</code> - explicit suffix match</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">domain:example.com</code> - exact domain only (no subdomains)</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">tld:gov</code> - all domains under .gov TLD</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">8.8.8.8</code> - exact IP address</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">ip:8.8.8.8</code> - explicit exact IP</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">10.0.0.0/8</code> - CIDR range (all IPs in subnet)</li>
+                <li><code class="px-1 py-0.5 rounded bg-white/10 text-xs">cidr:10.0.0.0/8</code> - explicit CIDR range</li>
                 <li>Lines starting with <code class="px-1 py-0.5 rounded bg-white/10 text-xs">#</code> are comments.</li>
             </ul>
         </div>
         <div class="bg-black/20 border border-white/10 rounded-lg p-4">
             <h4 class="font-semibold mb-2">Behavior</h4>
             <ul class="text-secondary text-sm list-disc pl-5 space-y-1">
-                <li><strong>Submission:</strong> Any IOC matching this list is blocked — no exceptions.</li>
+                <li><strong>Submission:</strong> Any IOC matching this list is blocked - no exceptions.</li>
                 <li><strong>Feed Pulse:</strong> Existing Domain/URL IOCs matching this list appear as anomalies.</li>
-                <li><strong>Anomalies:</strong> Separate from allowlist — private IPs, short domains, etc. are always flagged independently.</li>
+                <li><strong>Anomalies:</strong> Separate from allowlist - private IPs, short domains, etc. are always flagged independently.</li>
                 <li>After saving, the server cache is refreshed automatically.</li>
             </ul>
         </div>

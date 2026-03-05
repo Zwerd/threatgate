@@ -42,9 +42,9 @@
     "tags_placeholder": "malware, phishing",
     "ttl": "TTL *",
     "campaign": "Campaign (optional)",
-    "none": "— None —",
+    "none": "- None -",
     "assign_to": "Assign to user",
-    "me": "— Me —",
+    "me": "- Me -",
     "button": "Submit IOC"
   },
   "search": {

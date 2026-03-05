@@ -1,5 +1,5 @@
 /**
- * Champs Analysis tab logic (Step 10.3 — extracted from index.html).
+ * Champs Analysis tab logic (Step 10.3 - extracted from index.html).
  * Depends on globals: escapeHtml, escapeAttr, showToast, t, authState, Chart, loadStats, loadLiveFeed.
  * Exposes: loadChampsAnalysis, startChampsTickerPolling, champsSpotlightChart.
  */
@@ -320,7 +320,7 @@
             }
             champsTickerMessages = (j.messages || []).map(m => ({ text: m.text || '', category: m.category || 'analyst_success' }));
             if (champsTickerMessages.length === 0) {
-                const placeholder = (typeof t === 'function' && t('champs.ticker_no_activity')) ? t('champs.ticker_no_activity') : 'No recent activity — new submissions, rank changes and goal updates will appear here.';
+                const placeholder = (typeof t === 'function' && t('champs.ticker_no_activity')) ? t('champs.ticker_no_activity') : 'No recent activity - new submissions, rank changes and goal updates will appear here.';
                 stripEl.innerHTML = '<span class="champs-ticker-msg">' + escapeHtml(placeholder) + '</span>';
                 stripEl.classList.add('champs-ticker-placeholder');
                 scrollEl.classList.remove('champs-ticker-marquee');
@@ -453,7 +453,7 @@
                 : '';
             chartHtml = '<div class="champs-activity-block flex-1 min-h-0 flex flex-col mt-4 p-4 rounded-xl bg-black/20 border border-white/5">'
                 + '<div class="flex items-center justify-between mb-3 flex-shrink-0">'
-                + '<h4 class="text-xs font-bold text-secondary uppercase tracking-wider">Activity (30 days) — ' + escapeHtml(analystChartName) + ' vs team avg</h4>'
+                + '<h4 class="text-xs font-bold text-secondary uppercase tracking-wider">Activity (30 days) - ' + escapeHtml(analystChartName) + ' vs team avg</h4>'
                 + mispBtnHtml
                 + '</div>'
                 + '<div class="champs-spotlight-chart-wrap flex-1 min-h-[260px]"><canvas id="champsSpotlightChart"></canvas></div></div>';

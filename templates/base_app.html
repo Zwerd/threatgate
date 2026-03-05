@@ -6,8 +6,8 @@
     <title>{% block title %}ThreatGate v{{ version }}{% endblock %} - Commander Edition</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flag-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind-built.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
     <style>
         /* Override glass for header/nav: solid bg (style.css has .bg-secondary in card rule) */
         .bg-secondary { background-color: var(--bg-secondary); }

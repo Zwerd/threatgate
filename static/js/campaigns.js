@@ -1,5 +1,5 @@
 /**
- * Campaign Graph tab logic (Step 10.4 — extracted from index.html).
+ * Campaign Graph tab logic (Step 10.4 - extracted from index.html).
  * Depends on globals: escapeHtml, escapeAttr, showToast, t, vis (vis-network).
  * Exposes: populateCampaignDropdowns, loadUsersForAssignDropdown, loadCampaigns, renderGraph.
  */
@@ -14,7 +14,7 @@
             const res = await fetch('/api/campaigns');
             const data = await res.json().catch(() => ({}));
             const campaigns = (data.success && data.campaigns) ? data.campaigns : [];
-            const noneOption = '<option value="">— None —</option>';
+            const noneOption = '<option value="">- None -</option>';
             const noneUnassignedOption = '<option value="">None / Unassigned</option>';
             const selectOption = '<option value="">-- Select campaign --</option>';
             const formSelectIds = ['iocCampaignSelect', 'csvCampaignSelect', 'txtCampaignSelect', 'pasteCampaignSelect', 'yaraCampaignSelect', 'editCampaignSelect'];
@@ -51,7 +51,7 @@
             const res = await fetch('/api/users');
             const data = await res.json().catch(() => ({}));
             const users = (data.success && data.users) ? data.users : [];
-            const meOption = '<option value="">' + (typeof t === 'function' && t('submit.me') ? t('submit.me') : '— Me —') + '</option>';
+            const meOption = '<option value="">' + (typeof t === 'function' && t('submit.me') ? t('submit.me') : '- Me -') + '</option>';
             ['iocAssignTo', 'editAssignTo'].forEach(id => {
                 const sel = document.getElementById(id);
                 if (!sel) return;
@@ -160,7 +160,7 @@
         const msg = (typeof t === 'function' && t('campaign.delete_confirm_message'))
             ? t('campaign.delete_confirm_message')
             : 'Linked IOCs will be unlinked (not deleted).';
-        msgEl.textContent = (cname ? `"${cname}" — ` : '') + msg;
+        msgEl.textContent = (cname ? `"${cname}" - ` : '') + msg;
         modal.dataset.pendingCid = cid || '';
         modal.classList.remove('hidden');
     }

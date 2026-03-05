@@ -1,5 +1,5 @@
 /**
- * YARA Manager tab logic (Step 10.4 — extracted from index.html).
+ * YARA Manager tab logic (Step 10.4 - extracted from index.html).
  * Depends on globals: escapeHtml, escapeAttr, showToast, t, authState, apiFetch, Prism,
  *                     loadLiveFeed, searchInput, searchButton.
  * Exposes: loadYaraRules, loadYaraPending, loadYaraMyPending, openYaraMetaEditModal.
@@ -127,11 +127,11 @@
                     return `
                     <tr class="border border-white/10">
                         <td class="border border-white/10 px-4 py-2 text-sm font-mono">${escapeHtml(f.filename)}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeHtml((f.comment || '').trim()).replace(/"/g, '&quot;')}">${escapeHtml(f.comment || '—')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeHtml((f.comment || '').trim()).replace(/"/g, '&quot;')}">${escapeHtml(f.comment || '-')}</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${f.size_kb} KB</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '')}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.user || '—')}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.ticket_id || '—')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.user || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.ticket_id || '-')}</td>
                         <td class="border border-white/10 px-3 py-2">
                             <div class="flex items-center gap-1.5">
                                 <button type="button" class="btn-cmd-primary btn-cmd-sm view-yara-btn" data-filename="${escapeHtml(f.filename)}">${t('actions.view')}</button>
@@ -316,10 +316,10 @@
                 tbody.innerHTML = result.files.map(f => `
                     <tr class="border border-white/10">
                         <td class="border border-white/10 px-4 py-2 text-sm font-mono">${escapeHtml(f.filename)}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}">${escapeHtml(f.comment || '—')}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '—')}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.user || '—')}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.ticket_id || '—')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}">${escapeHtml(f.comment || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.user || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.ticket_id || '-')}</td>
                         <td class="border border-white/10 px-3 py-2">
                             <div class="flex items-center gap-1.5">
                                 <button type="button" class="btn-cmd-primary btn-cmd-sm view-pending-yara-btn" data-filename="${escapeAttr(f.filename)}">${t('actions.view')}</button>
@@ -359,8 +359,8 @@
                 tbody.innerHTML = result.files.map(f => `
                     <tr class="border border-white/10">
                         <td class="border border-white/10 px-4 py-2 text-sm font-mono">${escapeHtml(f.filename)}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}">${escapeHtml(f.comment || '—')}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '—')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}">${escapeHtml(f.comment || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '-')}</td>
                         <td class="border border-white/10 px-4 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/40">Pending</span></td>
                         <td class="border border-white/10 px-3 py-2">
                             <button type="button" class="btn-cmd-primary btn-cmd-sm view-my-pending-yara-btn" data-filename="${escapeAttr(f.filename)}">${t('actions.view')}</button>

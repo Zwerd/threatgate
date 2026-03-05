@@ -343,7 +343,7 @@ def api_feed_pulse():
                 anomalies.append({
                     'type': 'allowlisted',
                     'value': val,
-                    'message': f'Known legitimate asset — {al_reason}. Consider removing from blocklist.',
+                    'message': f'Known legitimate asset - {al_reason}. Consider removing from blocklist.',
                     'ioc_type': typ,
                     'is_allowlisted': True,
                     'allowlist_reason': al_reason or '',

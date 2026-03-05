@@ -1,5 +1,5 @@
 /**
- * Search & Investigate tab logic (Step 10.4 — extracted from index.html).
+ * Search & Investigate tab logic (Step 10.4 - extracted from index.html).
  * Depends on globals: escapeHtml, escapeAttr, showToast, t, getIocTypeIcon, copyToClipboard,
  *                     switchTab, loadStats, loadLiveFeed, loadFeedPulse, loadUsersForAssignDropdown,
  *                     openYaraMetaEditModal, translations, currentLang.
@@ -160,17 +160,17 @@
         const ticketDisplay = escapeHtml(result.ref || '');
         const campaignDisplay = escapeHtml(result.campaign_name || '');
         const tagsArr = Array.isArray(result.tags) ? result.tags : [];
-        const tagsDisplay = tagsArr.length ? tagsArr.map(t => '<span class="inline-block bg-white/10 text-xs px-2 py-0.5 rounded mr-1">' + escapeHtml(String(t)) + '</span>').join('') : '<span class="text-secondary">—</span>';
+        const tagsDisplay = tagsArr.length ? tagsArr.map(t => '<span class="inline-block bg-white/10 text-xs px-2 py-0.5 rounded mr-1">' + escapeHtml(String(t)) + '</span>').join('') : '<span class="text-secondary">-</span>';
 
         row.innerHTML = `
             <td class="${typeCellClass}">${icon} ${result.file_type}</td>
             <td class="border border-white/10 px-4 py-2 font-mono"><span class="inline-flex items-center gap-1 flex-wrap">${iocDisplay} <button type="button" class="copy-ioc-btn btn-cmd-neutral btn-cmd-sm ml-1" onclick="copyToClipboard(this.getAttribute('data-ioc'))" data-ioc="${iocAttr}" title="${t('actions.copy')}" aria-label="${t('actions.copy')}">${t('actions.copy')}</button></span></td>
             <td class="border border-white/10 px-4 py-2 text-sm">${result.date || 'N/A'}</td>
             <td class="border border-white/10 px-4 py-2 text-sm">${userDisplay}</td>
-            <td class="border border-white/10 px-4 py-2 text-sm font-mono">${ticketDisplay || '<span class="text-secondary">—</span>'}</td>
+            <td class="border border-white/10 px-4 py-2 text-sm font-mono">${ticketDisplay || '<span class="text-secondary">-</span>'}</td>
             <td class="border border-white/10 px-4 py-2 text-sm">${commentDisplay}</td>
             <td class="border border-white/10 px-4 py-2 text-sm">${tagsDisplay}</td>
-            <td class="border border-white/10 px-4 py-2 text-sm">${campaignDisplay || '<span class="text-secondary">—</span>'}</td>
+            <td class="border border-white/10 px-4 py-2 text-sm">${campaignDisplay || '<span class="text-secondary">-</span>'}</td>
             <td class="border border-white/10 px-4 py-2">${expirationBadge}</td>
             ${actionsCell}
         `;
@@ -452,7 +452,7 @@
 
     function _renderNoteHtml(note) {
         const dateStr = note.created_at ? new Date(note.created_at).toLocaleString() : '';
-        const by = note.username ? escapeHtml(note.username) : '—';
+        const by = note.username ? escapeHtml(note.username) : '-';
         return '<div class="border border-amber-400/20 rounded px-3 py-2 bg-amber-950/20">'
             + '<div class="flex justify-between items-center mb-1">'
             + '<span class="font-semibold text-amber-200 text-xs">' + by + '</span>'
@@ -484,7 +484,7 @@
     async function openIocHistoryModal(iocType, iocValue) {
         if (!iocHistoryModal || !iocHistoryList) return;
         const titleText = (typeof t === 'function' && t('actions.history')) ? t('actions.history') : 'History';
-        iocHistoryTitle.textContent = titleText + ' — ' + (iocType || '') + ': ' + (iocValue || '');
+        iocHistoryTitle.textContent = titleText + ' - ' + (iocType || '') + ': ' + (iocValue || '');
         iocHistoryList.innerHTML = '<div class="text-secondary">Loading...</div>';
         if (iocHistoryNotesSection) iocHistoryNotesSection.classList.add('hidden');
         iocHistoryModal.classList.remove('hidden');
@@ -513,7 +513,7 @@
             };
             iocHistoryList.innerHTML = events.map(ev => {
                 const atStr = ev.at ? new Date(ev.at).toLocaleString() : '';
-                const by = ev.username ? escapeHtml(ev.username) : '—';
+                const by = ev.username ? escapeHtml(ev.username) : '-';
                 let extra = '';
                 if (ev.event_type === 'created' && ev.payload && ev.payload.expiration_date) {
                     extra = ' <span class="text-secondary">(expires: ' + escapeHtml(String(ev.payload.expiration_date).slice(0, 10)) + ')</span>';
@@ -533,7 +533,7 @@
                         return '<div class="text-cyan-200/90"><span class="font-semibold">' + escapeHtml(label) + ':</span> <span class="text-secondary line-through">' + escapeHtml(String(c.old)) + '</span> ' + escapeHtml(arrow) + ' <span class="text-green-200/90">' + escapeHtml(String(c.new)) + '</span></div>';
                     }).join('') + '</div>';
                 }
-                return '<div class="border border-white/10 rounded px-3 py-2 bg-tertiary/50"><span class="font-semibold">' + (labels[ev.event_type] || ev.event_type) + '</span> — ' + (typeof t === 'function' && t('history.by') ? t('history.by') : 'by') + ' ' + by + ' <span class="text-secondary">' + atStr + '</span>' + extra + '</div>';
+                return '<div class="border border-white/10 rounded px-3 py-2 bg-tertiary/50"><span class="font-semibold">' + (labels[ev.event_type] || ev.event_type) + '</span> - ' + (typeof t === 'function' && t('history.by') ? t('history.by') : 'by') + ' ' + by + ' <span class="text-secondary">' + atStr + '</span>' + extra + '</div>';
             }).join('');
         } catch (e) {
             iocHistoryList.innerHTML = '<div class="text-red-400">' + escapeHtml(e.message || 'Error loading history') + '</div>';

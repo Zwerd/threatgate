@@ -36,7 +36,7 @@ try:
 except ImportError:
     GEOIP_AVAILABLE = False
 
-# Directory paths — must be defined before app (data/ is SMB share, holds DB and IOC data)
+# Directory paths - must be defined before app (data/ is SMB share, holds DB and IOC data)
 _base_dir = os.path.dirname(os.path.abspath(__file__))
 _data_dir = (_config and _config.DATA_DIR) or os.path.join(_base_dir, 'data')
 # Resolve data/Main so it works on case-sensitive FS (e.g. "Main" vs "main")

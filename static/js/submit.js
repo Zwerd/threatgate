@@ -1,5 +1,5 @@
 // ============================================================
-// submit.js — IOC submission, validation, staging & bulk logic
+// submit.js - IOC submission, validation, staging & bulk logic
 // Extracted from inline <script> in templates/index.html
 // ============================================================
 

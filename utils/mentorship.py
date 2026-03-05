@@ -1,9 +1,9 @@
 """
-SOC Mentorship Insights Engine — behavioral analysis of analyst intelligence output.
+SOC Mentorship Insights Engine - behavioral analysis of analyst intelligence output.
 
 Evaluates analysts using 45 rules across 9 categories (Volume, Consistency,
 Type Diversity, Quality, Campaign, YARA, Feed Hygiene, Knowledge Sharing,
-Growth Trends).  Only measures *intelligence output* — never logins, sessions,
+Growth Trends).  Only measures *intelligence output* - never logins, sessions,
 or search clicks.
 
 All heavy lifting is done via bulk SQL aggregations (GROUP BY) so the engine
@@ -26,7 +26,7 @@ _SEV_ORDER = {'action': 0, 'warning': 1, 'info': 2}
 
 
 # ---------------------------------------------------------------------------
-# Rule definitions — each rule is a dict with:
+# Rule definitions - each rule is a dict with:
 #   id, category, severity, message_fn(stats), recommendation, condition_fn(stats)
 # message_fn / condition_fn receive a per-analyst stats dict built from bulk queries.
 # ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ def _rules():
     R('vol_declining', 'Volume', 'warning',
       lambda s: s['prev_ioc_count'] > 0 and s['ioc_count'] < s['prev_ioc_count'] * 0.7,
       'IOC output declined 30%+ from previous period',
-      'Noticeable dip in output — could be workload shift or a deep-dive investigation. Worth a quick check-in')
+      'Noticeable dip in output - could be workload shift or a deep-dive investigation. Worth a quick check-in')
     R('vol_single_burst', 'Volume', 'info',
       lambda s: s['active_days'] == 1 and s['ioc_count'] > 0,
       'All contributions came in a single day',
@@ -87,11 +87,11 @@ def _rules():
     R('con_irregular_hours', 'Consistency', 'info',
       lambda s: s['ioc_count'] > 0 and s['night_pct'] > 80,
       'Over 80% of submissions during late-night hours (22:00–04:00)',
-      'Late-night pattern detected — could indicate after-hours catch-up. Review daytime task allocation')
+      'Late-night pattern detected - could indicate after-hours catch-up. Review daytime task allocation')
     R('con_long_gap', 'Consistency', 'warning',
       lambda s: s['max_gap_days'] >= 5,
       'Gap of 5+ consecutive days without any submissions',
-      'Extended quiet period — may be leave or a focused investigation. Good to verify')
+      'Extended quiet period - may be leave or a focused investigation. Good to verify')
 
     # ── C: Type Diversity (6) ─────────────────────────────────────
     R('div_single_type', 'Type Diversity', 'warning',
@@ -153,7 +153,7 @@ def _rules():
     R('camp_low_usage', 'Campaign', 'info',
       lambda s: 0 < s['with_campaign_pct'] < 20,
       'Fewer than 20% of IOCs linked to a campaign',
-      'Low campaign linkage — sharing how linked IOCs power reports can motivate improvement')
+      'Low campaign linkage - sharing how linked IOCs power reports can motivate improvement')
     R('camp_never_created', 'Campaign', 'info',
       lambda s: s['campaigns_created'] == 0 and s['ioc_count'] >= 10,
       'Never created a campaign',
@@ -175,7 +175,7 @@ def _rules():
     R('yara_rejected', 'YARA', 'warning',
       lambda s: s['yara_rejected_count'] > 0,
       'Some YARA rules were rejected',
-      'Some rules were rejected — sharing the rejection feedback constructively helps the analyst improve faster')
+      'Some rules were rejected - sharing the rejection feedback constructively helps the analyst improve faster')
     R('yara_no_campaign', 'YARA', 'info',
       lambda s: s['yara_without_campaign'] > 0,
       'YARA rules not linked to any campaign',
@@ -237,7 +237,7 @@ def _rules():
     R('grow_lost_badges', 'Growth Trends', 'warning',
       lambda s: s['lost_badges_count'] > 0,
       lambda s: f'Lost {s["lost_badges_count"]} badge(s) due to inactivity',
-      'Previously earned badges expired — a short encouragement can help restart the streak')
+      'Previously earned badges expired - a short encouragement can help restart the streak')
     R('grow_level_stagnant', 'Growth Trends', 'info',
       lambda s: s['days_at_current_level'] >= 30,
       'Same level for 30+ days',
@@ -245,13 +245,13 @@ def _rules():
     R('grow_below_team_avg_trend', 'Growth Trends', 'info',
       lambda s: s['total_days'] > 0 and s['days_below_team_avg'] / s['total_days'] > 0.8 and s['ioc_count'] > 0,
       'Activity consistently below team average',
-      'Consistent gap from team average — consider a mentorship pairing or workload review')
+      'Consistent gap from team average - consider a mentorship pairing or workload review')
 
     return rules
 
 
 # ---------------------------------------------------------------------------
-# Bulk data collection — everything via SQL GROUP BY
+# Bulk data collection - everything via SQL GROUP BY
 # ---------------------------------------------------------------------------
 
 def _bulk_analyst_stats(start_dt, end_dt, prev_start_dt, prev_end_dt):
@@ -589,7 +589,7 @@ def _bulk_analyst_stats(start_dt, end_dt, prev_start_dt, prev_end_dt):
             if old_rank is not None:
                 stats[uname]['rank_change'] = snap.rank - old_rank
 
-    # ── Badges (active vs previous — for lost_badges_count) ───────
+    # ── Badges (active vs previous - for lost_badges_count) ───────
     # This is lightweight: we just count badges from champs utility
     # Only import when needed to avoid circular dependency at module level
     try:

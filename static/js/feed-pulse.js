@@ -1,5 +1,5 @@
 /**
- * Feed Pulse tab logic (Step 10.4 — extracted from index.html).
+ * Feed Pulse tab logic (Step 10.4 - extracted from index.html).
  * Depends on globals: escapeHtml, escapeAttr, showToast, t, copyToClipboard.
  * Exposes: loadFeedPulse.
  */

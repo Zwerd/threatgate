@@ -1,5 +1,5 @@
 /**
- * Live Stats tab logic (Step 10.1 — extracted from index.html).
+ * Live Stats tab logic (Step 10.1 - extracted from index.html).
  * Depends on: window.apiFetch, window.escapeHtml, window.escapeAttr, window.copyToClipboard,
  * window.t, window.getThemeColor, window.getIocTypeIcon, window.translations, window.currentLang.
  * Exposes: window.loadStats, window.loadLiveFeed, window.loadHistoricalIocs, window.threatChart.

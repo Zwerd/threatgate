@@ -1,5 +1,5 @@
 /**
- * reports.js — Intelligence Reports tab (Master-Detail).
+ * reports.js - Intelligence Reports tab (Master-Detail).
  * Lazy-loaded when the Reports tab is activated.
  */
 (function () {
@@ -219,15 +219,15 @@
             var campaignsHtml = (analyst.campaigns || []).map(function (c) {
                 var typesStr = Object.entries(c.ioc_types || {}).map(function (kv) {
                     return kv[0] + ': ' + kv[1];
-                }).join(', ') || '—';
+                }).join(', ') || '-';
                 return '<div class="pl-3 py-1.5 border-l-2 border-cyan-500/40 mb-1.5 last:mb-0">' +
                     '<div class="font-semibold text-primary text-sm">' + escapeHtml(c.name) + '</div>' +
-                    '<div class="text-xs text-secondary mt-0.5">' + c.ioc_count + ' IOCs — ' + escapeHtml(typesStr) + '</div>' +
+                    '<div class="text-xs text-secondary mt-0.5">' + c.ioc_count + ' IOCs - ' + escapeHtml(typesStr) + '</div>' +
                     '</div>';
             }).join('');
             return '<div class="flex flex-col p-3 rounded-lg border border-white/10 bg-white/[0.02]">' +
                 '<div class="font-bold accent-blue text-sm mb-2 pb-1.5 border-b border-white/10">' + escapeHtml(analyst.display_name || analyst.analyst) + '</div>' +
-                '<div class="space-y-0 text-sm">' + (campaignsHtml || '<span class="text-secondary text-xs">—</span>') + '</div>' +
+                '<div class="space-y-0 text-sm">' + (campaignsHtml || '<span class="text-secondary text-xs">-</span>') + '</div>' +
                 '</div>';
         }).join('');
         container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">' + analystCards + '</div>';
@@ -486,7 +486,7 @@
                 '<td class="px-3 py-2 text-secondary">' + r.yara_count + '</td>' +
                 '<td class="px-3 py-2 text-secondary">' + (r.deletion_count || 0) + '</td>' +
                 '<td class="px-3 py-2 accent-blue font-semibold">' + r.score + '</td>' +
-                '<td class="px-3 py-2">' + (r.streak_days > 0 ? '<span class="text-orange-400">🔥 ' + r.streak_days + 'd</span>' : '<span class="text-secondary">—</span>') + '</td>' +
+                '<td class="px-3 py-2">' + (r.streak_days > 0 ? '<span class="text-orange-400">🔥 ' + r.streak_days + 'd</span>' : '<span class="text-secondary">-</span>') + '</td>' +
                 '</tr>';
         }).join('');
     }
@@ -527,7 +527,7 @@
                     '<span class="flex-shrink-0 mt-0.5">' + (sevIcon[f.severity] || '🔵') + '</span>' +
                     '<div>' +
                     '<span class="text-primary font-semibold">' + escapeHtml(f.analyst_name) + '</span>' +
-                    ' — <span class="text-secondary">' + escapeHtml(f.message) + '</span>' +
+                    ' - <span class="text-secondary">' + escapeHtml(f.message) + '</span>' +
                     '<div class="text-xs accent-blue mt-0.5">→ ' + escapeHtml(f.recommendation) + '</div>' +
                     '</div></div>';
             }).join('') +
@@ -1000,7 +1000,7 @@
         pdf.setFont(undefined, 'normal');
         pdf.setFontSize(10);
         pdf.setTextColor(80, 80, 80);
-        pdf.text('Period: ' + data.start_date + ' — ' + data.end_date, pageW / 2, reportY + 10, { align: 'center' });
+        pdf.text('Period: ' + data.start_date + ' - ' + data.end_date, pageW / 2, reportY + 10, { align: 'center' });
         pdf.text('Generated: ' + new Date().toISOString().split('T')[0], pageW / 2, reportY + 18, { align: 'center' });
 
         // ── Page 2: Table of Contents ─────────────────────────────
@@ -1069,7 +1069,7 @@
             pdf.text(row[0] + ': ' + _formatNum(row[1]), margin, y);
             pdf.setTextColor(100, 100, 100);
             pdf.setFontSize(8);
-            pdf.text(' — ' + row[2], margin + 55, y);
+            pdf.text(' - ' + row[2], margin + 55, y);
             pdf.setFontSize(9);
             pdf.setTextColor(0, 0, 0);
             y += lineH;
@@ -1174,8 +1174,8 @@
                 (analyst.campaigns || []).forEach(function (c) {
                     y = _checkPage(pdf, y, headerLogo);
                     pdf.setFontSize(9);
-                    var typesStr = Object.entries(c.ioc_types || {}).map(function (kv) { return kv[0] + ': ' + kv[1]; }).join(', ') || '—';
-                    pdf.text('  • ' + (c.name || '') + ' — ' + (c.ioc_count || 0) + ' IOCs (' + typesStr + ')', margin + 5, y);
+                    var typesStr = Object.entries(c.ioc_types || {}).map(function (kv) { return kv[0] + ': ' + kv[1]; }).join(', ') || '-';
+                    pdf.text('  • ' + (c.name || '') + ' - ' + (c.ioc_count || 0) + ' IOCs (' + typesStr + ')', margin + 5, y);
                     y += lineH - 1;
                 });
                 y += 2;
@@ -1331,7 +1331,7 @@
             pdf.setFontSize(9);
             leaderboard.slice(0, 15).forEach(function (a, i) {
                 y = _checkPage(pdf, y, headerLogo);
-                pdf.text('#' + (i + 1) + ' ' + (a.display_name || a.analyst || '') + ' — ' + a.total_iocs + ' IOCs, ' + (a.yara_count || 0) + ' YARA, Score: ' + (a.score || 0), margin, y);
+                pdf.text('#' + (i + 1) + ' ' + (a.display_name || a.analyst || '') + ' - ' + a.total_iocs + ' IOCs, ' + (a.yara_count || 0) + ' YARA, Score: ' + (a.score || 0), margin, y);
                 y += lineH - 1;
             });
         }
@@ -1342,7 +1342,7 @@
         pdf.setPage(2);
         tocY = 47;
         tocItems.forEach(function (item) {
-            var p = pageMap[item] || '—';
+            var p = pageMap[item] || '-';
             pdf.text(String(p), pageW - margin - 15, tocY, { align: 'right' });
             tocY += 7;
         });

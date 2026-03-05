@@ -1,5 +1,5 @@
 """
-Reports Blueprint — provides the /api/reports/data endpoint that aggregates
+Reports Blueprint - provides the /api/reports/data endpoint that aggregates
 all statistics for a given period (day/week/month) into a single JSON response
 for the Reports tab.
 """
@@ -71,12 +71,12 @@ def _prev_period_range(period, start_date):
 def _format_report_name(period, start_date, end_date):
     """Generate a human-readable report name."""
     if period == 'day':
-        return f"Daily Report — {start_date.strftime('%b %d, %Y')}"
+        return f"Daily Report - {start_date.strftime('%b %d, %Y')}"
     elif period == 'week':
-        return f"Weekly Report — {start_date.strftime('%b %d')} – {end_date.strftime('%b %d, %Y')}"
+        return f"Weekly Report - {start_date.strftime('%b %d')} – {end_date.strftime('%b %d, %Y')}"
     elif period == 'month':
-        return f"Monthly Report — {start_date.strftime('%B %Y')}"
-    return f"Report — {start_date.strftime('%b %d')} – {end_date.strftime('%b %d, %Y')}"
+        return f"Monthly Report - {start_date.strftime('%B %Y')}"
+    return f"Report - {start_date.strftime('%b %d')} – {end_date.strftime('%b %d, %Y')}"
 
 
 def _count_in_range(model, date_col, start_dt, end_dt, extra_filter=None):
@@ -470,7 +470,7 @@ def _get_report_data_impl():
 
 
 # ---------------------------------------------------------------------------
-# /api/reports/periods — list available reports for the sidebar
+# /api/reports/periods - list available reports for the sidebar
 # ---------------------------------------------------------------------------
 @reports_bp.route('/api/reports/periods', methods=['GET'])
 @login_required
@@ -575,7 +575,7 @@ def _build_analysts_section(start_dt, end_dt, prev_start_dt, prev_end_dt):
 
     scores = compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent, start_dt=start_dt, end_dt=end_dt)
 
-    # Podium — top 3
+    # Podium - top 3
     podium = []
     for r in scores[:3]:
         uid = r.get('user_id')

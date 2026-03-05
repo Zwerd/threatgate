@@ -50,7 +50,7 @@ BADGE_INACTIVITY_DAYS = {
 }
 BADGE_INACTIVITY_DEFAULT_DAYS = 30  # for any badge not in the dict
 
-# Smart Effort (#8): aggressive decay — max 7 days, badges disappear fast to enforce continuous activity.
+# Smart Effort (#8): aggressive decay - max 7 days, badges disappear fast to enforce continuous activity.
 BADGE_INACTIVITY_DAYS_SMART = {
     'on_fire': 0,
     'warm_streak': 0,
@@ -236,7 +236,7 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
     analyst_last = {}
     analyst_user_id = {}
 
-    # IOC points — prefer user_id -> username so invalid analyst strings (e.g. "soc") count under real user
+    # IOC points - prefer user_id -> username so invalid analyst strings (e.g. "soc") count under real user
     id_to_username = {u.id: (u.username or '').lower() for u in User.query.all() if u.username}
     smart = scoring_method == SCORING_SMART
     ioc_cols = [IOC.analyst, IOC.type, IOC.campaign_id, IOC.user_id, IOC.created_at]

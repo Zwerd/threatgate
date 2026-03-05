@@ -1,5 +1,5 @@
 /**
- * Shared API client (Step 9 — ARCHITECTURE_GAPS_AND_STEPS.md).
+ * Shared API client (Step 9 - ARCHITECTURE_GAPS_AND_STEPS.md).
  * apiFetch: centralizes fetch, response.ok check, JSON parse, result.success check, and showToast on error.
  * Exposed on window for use from index.html and other scripts.
  */
