@@ -9,7 +9,7 @@ import html
 
 
 def decode_html_entities(text: str | None) -> str:
-    """Decode &#123; &#x7B; &amp; &lt; etc. so IOCs like threa&#116;gate.com become threatgate.com."""
+    """Decode &#123; &#x7B; &amp; &lt; etc. so IOCs like example&#46;com become example.com."""
     if not text:
         return ''
     # Python html.unescape handles &amp; &lt; &#123; &#x7B; etc.

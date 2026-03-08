@@ -1,5 +1,5 @@
 """
-CEF (Common Event Format) logger for ThreatGate.
+CEF (Common Event Format) logger for ZIoCHub.
 - Local file logging with 48-hour rotation (overwrites to prevent disk fill)
 - Optional UDP syslog forwarding when configured in Admin Settings
 - Format: CEF over syslog (RFC 5424 style prefix + CEF payload)
@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 # CEF header fields (pipe-delimited)
 CEF_VERSION = '0'
-DEVICE_VENDOR = 'ThreatGate'
+DEVICE_VENDOR = 'ZIoCHub'
 DEVICE_PRODUCT = 'IOC-Platform'
 DEVICE_VERSION = '2.0'
 
@@ -60,9 +60,9 @@ def _syslog_prefix() -> str:
     now = datetime.now(timezone.utc)
     ts = now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     try:
-        hostname = socket.gethostname() or 'threatgate'
+        hostname = socket.gethostname() or 'ziochub'
     except Exception:
-        hostname = 'threatgate'
+        hostname = 'ziochub'
     return f'{ts} {hostname}'
 
 
@@ -124,7 +124,7 @@ def get_cef_logger(log_path: str, udp_host: str = '', udp_port: int = 514) -> lo
     """Get or create the CEF audit logger."""
     global _cef_logger, _cef_handler
     if _cef_logger is None:
-        _cef_logger = logging.getLogger('threatgate.cef_audit')
+        _cef_logger = logging.getLogger('ziochub.cef_audit')
         _cef_logger.setLevel(logging.INFO)
         _cef_logger.propagate = False
         _cef_handler = CEFAuditHandler(log_path, udp_host, udp_port)

@@ -1,5 +1,5 @@
 """
-ThreatGate constants.
+ZIoCHub constants.
 """
 # Platform version (single source of truth for all templates, i18n, etc.)
 VERSION = "2.0 Beta"

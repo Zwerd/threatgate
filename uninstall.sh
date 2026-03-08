@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  ThreatGate — Full Uninstaller (Linux)
+#  ZIoCHub — Full Uninstaller (Linux)
 # ============================================================================
-#  Removes ThreatGate completely: systemd services, processes, application
+#  Removes ZIoCHub completely: systemd services, processes, application
 #  code, Python venv, database, IOC files, YARA rules, SSL certificates,
-#  backups, and the threatgate system user/group.
+#  backups, and the ziochub system user/group.
 #
 #  Usage:
 #    sudo ./uninstall.sh              # Interactive (asks confirmation)
@@ -30,7 +30,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 show_help() {
     echo ""
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${CYAN}  ThreatGate — Full Uninstaller${NC}"
+    echo -e "${CYAN}  ZIoCHub — Full Uninstaller${NC}"
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo "Usage:  sudo ./uninstall.sh [OPTIONS]"
@@ -38,23 +38,23 @@ show_help() {
     echo "Options:"
     echo "  --yes, -y       Skip confirmation prompt and remove everything."
     echo "  --backup, -b    Backup data directory before removal."
-    echo "                  Backup is saved to /opt/threatgate_backup_<timestamp>/"
+    echo "                  Backup is saved to /opt/ziochub_backup_<timestamp>/"
     echo "  --help, -h      Show this help message and exit."
     echo ""
     echo -e "${RED}══ What Gets Removed ══${NC}"
     echo ""
     echo "  Systemd services & timers (8 units):"
-    echo "    - threatgate.service            (main app)"
-    echo "    - threatgate-redirect.service   (HTTP→HTTPS redirect)"
-    echo "    - threatgate-cleaner.service    + timer (expired IOC cleanup)"
-    echo "    - threatgate-backup.service     + timer (daily DB backup)"
-    echo "    - threatgate-misp-sync.service  + timer (MISP pull)"
+    echo "    - ziochub.service            (main app)"
+    echo "    - ziochub-redirect.service   (HTTP→HTTPS redirect)"
+    echo "    - ziochub-cleaner.service    + timer (expired IOC cleanup)"
+    echo "    - ziochub-backup.service     + timer (daily DB backup)"
+    echo "    - ziochub-misp-sync.service  + timer (MISP pull)"
     echo "    - Any systemd override directories (*.service.d/)"
     echo ""
-    echo "  Application directory (/opt/threatgate):"
+    echo "  Application directory (/opt/ziochub):"
     echo "    - Python source code (app.py, utils/, routes/, templates/, static/)"
     echo "    - Virtual environment (venv/)"
-    echo "    - SQLite database (data/threatgate.db)"
+    echo "    - SQLite database (data/ziochub.db)"
     echo "    - IOC files (data/Main/)"
     echo "    - YARA rules (data/YARA/, data/YARA_pending/)"
     echo "    - SSL certificates (data/ssl/)"
@@ -63,14 +63,14 @@ show_help() {
     echo "    - Config files (allowlist.txt, org_domains.txt, GeoIP DB)"
     echo ""
     echo "  System:"
-    echo "    - All running ThreatGate processes (gunicorn, redirect)"
-    echo "    - System user 'threatgate' and group 'threatgate'"
+    echo "    - All running ZIoCHub processes (gunicorn, redirect)"
+    echo "    - System user 'ziochub' and group 'ziochub'"
     echo ""
     echo -e "${GREEN}══ What Is NOT Removed ══${NC}"
     echo ""
     echo "  - System journal logs (cleaned by journal rotation)"
     echo "  - Python3 / system packages (apt packages)"
-    echo "  - Backups created with --backup flag (saved outside /opt/threatgate)"
+    echo "  - Backups created with --backup flag (saved outside /opt/ziochub)"
     echo ""
     echo -e "${YELLOW}══ Examples ══${NC}"
     echo ""
@@ -104,34 +104,34 @@ done
 [[ $EUID -ne 0 ]] && fail "This script must be run as root (sudo ./uninstall.sh)"
 
 # ── Constants ───────────────────────────────────────────────────────────────
-APP_USER="threatgate"
-APP_GROUP="threatgate"
-APP_DIR="/opt/threatgate"
+APP_USER="ziochub"
+APP_GROUP="ziochub"
+APP_DIR="/opt/ziochub"
 DATA_DIR="${APP_DIR}/data"
 VENV_DIR="${APP_DIR}/venv"
-BACKUP_DIR="/opt/threatgate_backup_$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR="/opt/ziochub_backup_$(date +%Y%m%d_%H%M%S)"
 
 ALL_UNITS=(
-    "threatgate.service"
-    "threatgate-redirect.service"
-    "threatgate-cleaner.service"
-    "threatgate-cleaner.timer"
-    "threatgate-backup.service"
-    "threatgate-backup.timer"
-    "threatgate-misp-sync.service"
-    "threatgate-misp-sync.timer"
+    "ziochub.service"
+    "ziochub-redirect.service"
+    "ziochub-cleaner.service"
+    "ziochub-cleaner.timer"
+    "ziochub-backup.service"
+    "ziochub-backup.timer"
+    "ziochub-misp-sync.service"
+    "ziochub-misp-sync.timer"
 )
 
 # ── Banner ──────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${RED}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${RED}║         ThreatGate — Full Uninstaller                   ║${NC}"
+echo -e "${RED}║         ZIoCHub — Full Uninstaller                     ║${NC}"
 echo -e "${RED}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-info "This will remove ThreatGate completely:"
+info "This will remove ZIoCHub completely:"
 echo "    - All systemd services and timers"
-echo "    - All running ThreatGate processes"
+echo "    - All running ZIoCHub processes"
 echo "    - Application directory: ${APP_DIR} (code, venv, database, everything)"
 echo "    - System user '${APP_USER}' and group '${APP_GROUP}'"
 if $DO_BACKUP; then
@@ -151,7 +151,7 @@ if ! $SKIP_CONFIRM; then
 fi
 
 # ── 1. Stop services ────────────────────────────────────────────────────────
-info "Stopping ThreatGate services..."
+info "Stopping ZIoCHub services..."
 
 for unit in "${ALL_UNITS[@]}"; do
     if systemctl is-active --quiet "$unit" 2>/dev/null; then
@@ -169,10 +169,10 @@ done
 ok "Services disabled."
 
 # ── 3. Kill orphan processes ────────────────────────────────────────────────
-info "Checking for leftover ThreatGate processes..."
+info "Checking for leftover ZIoCHub processes..."
 
 KILLED=0
-# Kill gunicorn workers running from /opt/threatgate
+# Kill gunicorn workers running from /opt/ziochub
 if pgrep -f "${APP_DIR}/venv/bin/gunicorn" &>/dev/null; then
     pkill -f "${APP_DIR}/venv/bin/gunicorn" 2>/dev/null || true
     KILLED=$((KILLED + 1))
@@ -204,7 +204,7 @@ if $DO_BACKUP && [[ -d "${DATA_DIR}" ]]; then
     info "Backing up data to ${BACKUP_DIR}..."
     mkdir -p "${BACKUP_DIR}"
     cp -a "${DATA_DIR}/." "${BACKUP_DIR}/" 2>/dev/null || true
-    echo "ThreatGate data backup" > "${BACKUP_DIR}/MANIFEST.txt"
+    echo "ZIoCHub data backup" > "${BACKUP_DIR}/MANIFEST.txt"
     echo "Date: $(date)" >> "${BACKUP_DIR}/MANIFEST.txt"
     echo "Source: ${DATA_DIR}" >> "${BACKUP_DIR}/MANIFEST.txt"
     echo "" >> "${BACKUP_DIR}/MANIFEST.txt"
@@ -221,7 +221,7 @@ for unit in "${ALL_UNITS[@]}"; do
     if [[ -f "$unit_file" ]]; then
         rm -f "$unit_file"
     fi
-    # Remove override directories (e.g. /etc/systemd/system/threatgate.service.d/)
+    # Remove override directories (e.g. /etc/systemd/system/ziochub.service.d/)
     override_dir="/etc/systemd/system/${unit}.d"
     if [[ -d "$override_dir" ]]; then
         rm -rf "$override_dir"
@@ -297,15 +297,15 @@ fi
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║         ThreatGate — Uninstall Complete                 ║${NC}"
+echo -e "${GREEN}║         ZIoCHub — Uninstall Complete                   ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
 info "Removed:"
 echo "    - All systemd services, timers, and override directories"
-echo "    - All ThreatGate processes"
+echo "    - All ZIoCHub processes"
 echo "    - ${APP_DIR}/ (application code, templates, static, Python venv)"
-echo "    - ${DATA_DIR}/threatgate.db (SQLite database)"
+echo "    - ${DATA_DIR}/ziochub.db (SQLite database)"
 echo "    - ${DATA_DIR}/Main/ (IOC files)"
 echo "    - ${DATA_DIR}/YARA/ and YARA_pending/ (YARA rules)"
 echo "    - ${DATA_DIR}/ssl/ (SSL certificates)"
@@ -317,7 +317,7 @@ echo ""
 if $DO_BACKUP && [[ -d "${BACKUP_DIR}" ]]; then
     info "Data backup preserved at: ${BACKUP_DIR}"
     echo "    To inspect: ls -la ${BACKUP_DIR}"
-    echo "    To restore: sudo ./setup.sh && sudo cp -a ${BACKUP_DIR}/. /opt/threatgate/data/"
+    echo "    To restore: sudo ./setup.sh && sudo cp -a ${BACKUP_DIR}/. /opt/ziochub/data/"
     echo ""
 fi
 

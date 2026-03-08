@@ -1,5 +1,5 @@
 """
-MISP Integration - pull IOC attributes from a MISP instance into ThreatGate.
+MISP Integration - pull IOC attributes from a MISP instance into ZIoCHub.
 
 Requires: pymisp (pip install pymisp)
 """
@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 
 from utils.validation import validate_ioc
 
-_log = logging.getLogger('threatgate.misp')
+_log = logging.getLogger('ziochub.misp')
 
 PYMISP_AVAILABLE = False
 try:
@@ -20,7 +20,7 @@ try:
 except ImportError:
     PyMISP = None  # type: ignore
 
-# MISP attribute type -> ThreatGate IOC type
+# MISP attribute type -> ZIoCHub IOC type
 MISP_TYPE_MAP = {
     'ip-src': 'IP',
     'ip-dst': 'IP',
@@ -208,7 +208,7 @@ def sync_to_db(
     default_ttl_days: int | None = None,
 ) -> dict:
     """
-    Insert MISP attributes into ThreatGate DB.
+    Insert MISP attributes into ZIoCHub DB.
     Must be called within Flask app context.
     Returns summary: {added, skipped, errors}
     """
@@ -353,7 +353,7 @@ def _release_lock():
 
 def run_sync(settings: dict) -> dict:
     """
-    Full sync pipeline: fetch from MISP -> insert into ThreatGate.
+    Full sync pipeline: fetch from MISP -> insert into ZIoCHub.
     `settings` can be raw (from DB); they are normalized via misp_settings.
     Must be called within Flask app context.
     Uses a DB-based lock to prevent concurrent syncs.

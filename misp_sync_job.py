@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-ThreatGate - MISP Automatic Sync Job
-=====================================
+ZIoCHub - MISP Automatic Sync Job
+==================================
 Pulls new IOC attributes from a configured MISP instance and imports them
-into ThreatGate.
+into ZIoCHub.
 
-Designed to be triggered by systemd timer (threatgate-misp-sync.timer).
+Designed to be triggered by systemd timer (ziochub-misp-sync.timer).
 The timer fires frequently (every 5 min); this script checks the admin-
 configured pull interval and exits early if it's not time yet.
 """

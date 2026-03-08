@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  ThreatGate — Production Installer (Linux)
+#  ZIoCHub — Production Installer (Linux)
 # ============================================================================
-#  Installs ThreatGate as a systemd-managed service on a Linux server.
+#  Installs ZIoCHub as a systemd-managed service on a Linux server.
 #  Supports online, offline, and upgrade modes.
 #
 #  Usage:
@@ -11,7 +11,7 @@
 #    sudo ./setup.sh --upgrade    # Upgrade existing installation
 #    sudo ./setup.sh --help       # Full help with steps and paths
 #
-#  Installs to /opt/threatgate with data in /opt/threatgate/data/
+#  Installs to /opt/ziochub with data in /opt/ziochub/data/
 #  Creates systemd services for the app, HTTP redirect, cleaner, backup, MISP.
 #  Auto-generates a self-signed SSL certificate if openssl is available.
 # ============================================================================
@@ -27,7 +27,7 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 # ── Help ─────────────────────────────────────────────────────────────────────
 show_help() {
     echo ""
-    echo -e "${CYAN}ThreatGate — Production Installer${NC}"
+    echo -e "${CYAN}ZIoCHub — Production Installer${NC}"
     echo ""
     echo "Usage:  sudo ./setup.sh [OPTIONS]"
     echo ""
@@ -46,25 +46,25 @@ show_help() {
     echo ""
     echo "What the installer does:"
     echo "  1. Runs pre-flight checks (Python, systemd, openssl, required files)"
-    echo "  2. Creates system user 'threatgate'"
-    echo "  3. Copies application files to /opt/threatgate"
+    echo "  2. Creates system user 'ziochub'"
+    echo "  3. Copies application files to /opt/ziochub"
     echo "  4. Creates Python venv and installs dependencies"
     echo "  5. Initializes the SQLite database"
     echo "  6. Generates a self-signed SSL certificate (requires openssl)"
     echo "  7. Installs and enables systemd services:"
-    echo "       - threatgate.service           (main app on port 8443)"
-    echo "       - threatgate-redirect.service   (HTTP redirect on port 8080)"
-    echo "       - threatgate-cleaner.timer      (daily expired IOC cleanup)"
-    echo "       - threatgate-backup.timer       (daily database backup)"
-    echo "       - threatgate-misp-sync.timer    (MISP IOC pull, if configured)"
+    echo "       - ziochub.service           (main app on port 8443)"
+    echo "       - ziochub-redirect.service   (HTTP redirect on port 8080)"
+    echo "       - ziochub-cleaner.timer      (daily expired IOC cleanup)"
+    echo "       - ziochub-backup.timer       (daily database backup)"
+    echo "       - ziochub-misp-sync.timer    (MISP IOC pull, if configured)"
     echo ""
     echo "Paths:"
-    echo "  Application   /opt/threatgate"
-    echo "  Database      /opt/threatgate/data/threatgate.db"
-    echo "  IOC files     /opt/threatgate/data/Main/"
-    echo "  YARA rules    /opt/threatgate/data/YARA/"
-    echo "  SSL certs     /opt/threatgate/data/ssl/"
-    echo "  Backups       /opt/threatgate/data/backups/"
+    echo "  Application   /opt/ziochub"
+    echo "  Database      /opt/ziochub/data/ziochub.db"
+    echo "  IOC files     /opt/ziochub/data/Main/"
+    echo "  YARA rules    /opt/ziochub/data/YARA/"
+    echo "  SSL certs     /opt/ziochub/data/ssl/"
+    echo "  Backups       /opt/ziochub/data/backups/"
     echo ""
     exit 0
 }
@@ -82,9 +82,9 @@ done
 
 # ── Constants ───────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_USER="threatgate"
-APP_GROUP="threatgate"
-APP_DIR="/opt/threatgate"
+APP_USER="ziochub"
+APP_GROUP="ziochub"
+APP_DIR="/opt/ziochub"
 DATA_DIR="${APP_DIR}/data"
 VENV_DIR="${APP_DIR}/venv"
 
@@ -96,7 +96,7 @@ SCRIPT_CANON=$(readlink -f "${SCRIPT_DIR}" 2>/dev/null || realpath "${SCRIPT_DIR
 APP_CANON=$(readlink -f "${APP_DIR}" 2>/dev/null || realpath "${APP_DIR}" 2>/dev/null || echo "${APP_DIR}")
 if [[ "${SCRIPT_CANON}" == "${APP_CANON}" ]] || [[ "${SCRIPT_DIR}" == "${APP_DIR}" ]]; then
     fail "Do not run setup.sh from the installed directory (${APP_DIR})." \
-         "Extract the installer ZIP to a separate folder (e.g. threatgate_install), then run: cd threatgate_install && sudo ./setup.sh --upgrade --offline"
+         "Extract the installer ZIP to a separate folder (e.g. ziochub_install), then run: cd ziochub_install && sudo ./setup.sh --upgrade --offline"
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -146,10 +146,10 @@ REQUIRED_FILES=(
     "start.sh"
     "http_redirect.py"
     "requirements.txt"
-    "threatgate.service"
-    "threatgate-redirect.service"
-    "threatgate-cleaner.service"
-    "threatgate-cleaner.timer"
+    "ziochub.service"
+    "ziochub-redirect.service"
+    "ziochub-cleaner.service"
+    "ziochub-cleaner.timer"
 )
 
 MISSING_FILES=()
@@ -275,7 +275,7 @@ fi
 
 if $EXISTING_INSTALL && ! $UPGRADE; then
     echo ""
-    warn "Existing ThreatGate installation detected at ${APP_DIR}"
+    warn "Existing ZIoCHub installation detected at ${APP_DIR}"
     echo ""
     info "Options:"
     echo "    1. Run with --upgrade to update the existing installation"
@@ -294,9 +294,9 @@ fi
 # ── Banner ──────────────────────────────────────────────────────────────────
 echo ""
 if $UPGRADE; then
-    info "ThreatGate Production Installer (UPGRADE MODE)"
+    info "ZIoCHub Production Installer (UPGRADE MODE)"
 else
-    info "ThreatGate Production Installer (FRESH INSTALL)"
+    info "ZIoCHub Production Installer (FRESH INSTALL)"
 fi
 info "Mode: $( $OFFLINE && echo 'OFFLINE (local wheels)' || echo 'ONLINE (pip from PyPI)' )"
 echo ""
@@ -304,14 +304,14 @@ echo ""
 # ── 0. Stop services if upgrading ──────────────────────────────────────────
 if $UPGRADE; then
     info "Stopping existing services for upgrade..."
-    systemctl stop threatgate.service 2>/dev/null || true
-    systemctl stop threatgate-redirect.service 2>/dev/null || true
-    systemctl stop threatgate-cleaner.timer 2>/dev/null || true
-    systemctl stop threatgate-cleaner.service 2>/dev/null || true
-    systemctl stop threatgate-backup.timer 2>/dev/null || true
-    systemctl stop threatgate-backup.service 2>/dev/null || true
-    systemctl stop threatgate-misp-sync.timer 2>/dev/null || true
-    systemctl stop threatgate-misp-sync.service 2>/dev/null || true
+    systemctl stop ziochub.service 2>/dev/null || true
+    systemctl stop ziochub-redirect.service 2>/dev/null || true
+    systemctl stop ziochub-cleaner.timer 2>/dev/null || true
+    systemctl stop ziochub-cleaner.service 2>/dev/null || true
+    systemctl stop ziochub-backup.timer 2>/dev/null || true
+    systemctl stop ziochub-backup.service 2>/dev/null || true
+    systemctl stop ziochub-misp-sync.timer 2>/dev/null || true
+    systemctl stop ziochub-misp-sync.service 2>/dev/null || true
     ok "Services stopped."
 fi
 
@@ -370,9 +370,9 @@ if [[ ! -f "${APP_DIR}/static/css/tailwind-built.css" ]]; then
 fi
 
 # Backup script (offline-safe, local only)
-if [[ -f "${SCRIPT_DIR}/backup_threatgate.sh" ]]; then
-    cp "${SCRIPT_DIR}/backup_threatgate.sh" "${APP_DIR}/"
-    chmod +x "${APP_DIR}/backup_threatgate.sh"
+if [[ -f "${SCRIPT_DIR}/backup_ziochub.sh" ]]; then
+    cp "${SCRIPT_DIR}/backup_ziochub.sh" "${APP_DIR}/"
+    chmod +x "${APP_DIR}/backup_ziochub.sh"
     ok "Backup script installed."
 fi
 
@@ -533,7 +533,7 @@ else
             -keyout "${SSL_DIR}/key.pem" \
             -out "${SSL_DIR}/cert.pem" \
             -days 365 \
-            -subj "/CN=${SERVER_HOSTNAME}/O=ThreatGate/OU=SOC" \
+            -subj "/CN=${SERVER_HOSTNAME}/O=ZIoCHub/OU=SOC" \
             -addext "subjectAltName=${SAN_ENTRIES}" \
             2>/dev/null
 
@@ -552,7 +552,7 @@ else
         echo -e "${RED}╔══════════════════════════════════════════════════════════╗${NC}"
         echo -e "${RED}║  WARNING: openssl is not installed                      ║${NC}"
         echo -e "${RED}║  SSL certificate was NOT generated.                     ║${NC}"
-        echo -e "${RED}║  ThreatGate will run on plain HTTP (port 8443).         ║${NC}"
+        echo -e "${RED}║  ZIoCHub will run on plain HTTP (port 8443).         ║${NC}"
         echo -e "${RED}║                                                         ║${NC}"
         echo -e "${RED}║  To enable HTTPS later:                                 ║${NC}"
         echo -e "${RED}║    1. Install openssl:  apt install openssl             ║${NC}"
@@ -561,7 +561,7 @@ else
         echo -e "${RED}║         -keyout ${SSL_DIR}/key.pem \\${NC}"
         echo -e "${RED}║         -out ${SSL_DIR}/cert.pem \\${NC}"
         echo -e "${RED}║         -days 365 -subj '/CN=localhost'                 ║${NC}"
-        echo -e "${RED}║    3. Restart: systemctl restart threatgate             ║${NC}"
+        echo -e "${RED}║    3. Restart: systemctl restart ziochub               ║${NC}"
         echo -e "${RED}╚══════════════════════════════════════════════════════════╝${NC}"
         echo ""
     fi
@@ -572,36 +572,36 @@ chown -R "${APP_USER}:${APP_GROUP}" "${SSL_DIR}" 2>/dev/null || true
 # ── 6. Systemd services ────────────────────────────────────────────────────
 info "Installing systemd units..."
 
-cp "${SCRIPT_DIR}/threatgate.service"          /etc/systemd/system/
-cp "${SCRIPT_DIR}/threatgate-redirect.service" /etc/systemd/system/
-cp "${SCRIPT_DIR}/threatgate-cleaner.service"  /etc/systemd/system/
-cp "${SCRIPT_DIR}/threatgate-cleaner.timer"    /etc/systemd/system/
-if [[ -f "${SCRIPT_DIR}/threatgate-backup.service" ]] && [[ -f "${SCRIPT_DIR}/threatgate-backup.timer" ]]; then
-    cp "${SCRIPT_DIR}/threatgate-backup.service" /etc/systemd/system/
-    cp "${SCRIPT_DIR}/threatgate-backup.timer"   /etc/systemd/system/
+cp "${SCRIPT_DIR}/ziochub.service"          /etc/systemd/system/
+cp "${SCRIPT_DIR}/ziochub-redirect.service" /etc/systemd/system/
+cp "${SCRIPT_DIR}/ziochub-cleaner.service"  /etc/systemd/system/
+cp "${SCRIPT_DIR}/ziochub-cleaner.timer"    /etc/systemd/system/
+if [[ -f "${SCRIPT_DIR}/ziochub-backup.service" ]] && [[ -f "${SCRIPT_DIR}/ziochub-backup.timer" ]]; then
+    cp "${SCRIPT_DIR}/ziochub-backup.service" /etc/systemd/system/
+    cp "${SCRIPT_DIR}/ziochub-backup.timer"   /etc/systemd/system/
 fi
-if [[ -f "${SCRIPT_DIR}/threatgate-misp-sync.service" ]] && [[ -f "${SCRIPT_DIR}/threatgate-misp-sync.timer" ]]; then
-    cp "${SCRIPT_DIR}/threatgate-misp-sync.service" /etc/systemd/system/
-    cp "${SCRIPT_DIR}/threatgate-misp-sync.timer"   /etc/systemd/system/
+if [[ -f "${SCRIPT_DIR}/ziochub-misp-sync.service" ]] && [[ -f "${SCRIPT_DIR}/ziochub-misp-sync.timer" ]]; then
+    cp "${SCRIPT_DIR}/ziochub-misp-sync.service" /etc/systemd/system/
+    cp "${SCRIPT_DIR}/ziochub-misp-sync.timer"   /etc/systemd/system/
 fi
 
 systemctl daemon-reload
 
-systemctl enable threatgate.service
-systemctl enable threatgate-redirect.service
-systemctl enable threatgate-cleaner.timer
-if [[ -f "${SCRIPT_DIR}/threatgate-backup.timer" ]]; then
-    systemctl enable threatgate-backup.timer
-    systemctl start threatgate-backup.timer 2>/dev/null || true
+systemctl enable ziochub.service
+systemctl enable ziochub-redirect.service
+systemctl enable ziochub-cleaner.timer
+if [[ -f "${SCRIPT_DIR}/ziochub-backup.timer" ]]; then
+    systemctl enable ziochub-backup.timer
+    systemctl start ziochub-backup.timer 2>/dev/null || true
 fi
-if [[ -f /etc/systemd/system/threatgate-misp-sync.timer ]]; then
-    systemctl enable threatgate-misp-sync.timer
-    systemctl start threatgate-misp-sync.timer 2>/dev/null || true
+if [[ -f /etc/systemd/system/ziochub-misp-sync.timer ]]; then
+    systemctl enable ziochub-misp-sync.timer
+    systemctl start ziochub-misp-sync.timer 2>/dev/null || true
 fi
 
-systemctl restart threatgate.service
-systemctl restart threatgate-redirect.service 2>/dev/null || true
-systemctl start   threatgate-cleaner.timer
+systemctl restart ziochub.service
+systemctl restart ziochub-redirect.service 2>/dev/null || true
+systemctl start   ziochub-cleaner.timer
 
 ok "Systemd units installed & started."
 
@@ -609,11 +609,11 @@ ok "Systemd units installed & started."
 echo ""
 if $UPGRADE; then
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║         ThreatGate — Upgrade Complete                   ║${NC}"
+    echo -e "${GREEN}║         ZIoCHub — Upgrade Complete                     ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 else
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║         ThreatGate — Installation Complete              ║${NC}"
+    echo -e "${GREEN}║         ZIoCHub — Installation Complete                ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 fi
 echo ""
@@ -623,7 +623,7 @@ info "Service user     : ${APP_USER}"
 echo ""
 info "Paths:"
 echo "    Application   : ${APP_DIR}"
-echo "    Database      : ${DATA_DIR}/threatgate.db"
+echo "    Database      : ${DATA_DIR}/ziochub.db"
 echo "    IOC files     : ${DATA_DIR}/Main/"
 echo "    YARA rules    : ${DATA_DIR}/YARA/"
 echo "    SSL certs     : ${DATA_DIR}/ssl/"
@@ -632,7 +632,7 @@ echo ""
 
 if $UPGRADE; then
     info "Your data was preserved:"
-    echo "    - Database: ${DATA_DIR}/threatgate.db"
+    echo "    - Database: ${DATA_DIR}/ziochub.db"
     echo "    - IOC files: ${DATA_DIR}/Main/"
     echo "    - YARA rules: ${DATA_DIR}/YARA/"
     echo "    - SSL certs: ${DATA_DIR}/ssl/"
@@ -645,7 +645,7 @@ if $UPGRADE; then
     echo ""
 fi
 
-systemctl --no-pager status threatgate.service || true
+systemctl --no-pager status ziochub.service || true
 
 echo ""
 SERVER_IP="$(hostname -I | awk '{print $1}')"
@@ -659,10 +659,10 @@ else
 fi
 echo ""
 info "Useful commands:"
-info "  journalctl -u threatgate -f               # Live logs"
-info "  systemctl restart threatgate              # Restart app"
-info "  systemctl status threatgate-redirect      # HTTP redirect status"
-info "  systemctl status threatgate-cleaner.timer # Cleaner schedule"
-info "  systemctl status threatgate-backup.timer  # Backup schedule"
+info "  journalctl -u ziochub -f               # Live logs"
+info "  systemctl restart ziochub              # Restart app"
+info "  systemctl status ziochub-redirect      # HTTP redirect status"
+info "  systemctl status ziochub-cleaner.timer # Cleaner schedule"
+info "  systemctl status ziochub-backup.timer  # Backup schedule"
 info "  ./uninstall.sh --help                     # Uninstall options"
 echo ""

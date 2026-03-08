@@ -485,7 +485,7 @@ def export_iocs():
     return Response(
         output.getvalue(),
         mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=threatgate_export.csv'}
+        headers={'Content-Disposition': 'attachment; filename=ziochub_export.csv'}
     )
 
 

@@ -1,5 +1,5 @@
 {
-  "title": "ThreatGate v$VERSION",
+  "title": "ZIoCHub v$VERSION",
   "auth": {
     "login": "Login",
     "logout": "Logout",
@@ -424,7 +424,7 @@
   },
   "feed_catalog": {
     "title": "Available Feed Endpoints",
-    "description": "Use these URLs to integrate ThreatGate feeds into your security devices. All feeds serve only active (non-expired) IOCs in plain text.",
+    "description": "Use these URLs to integrate ZIoCHub feeds into your security devices. All feeds serve only active (non-expired) IOCs in plain text.",
     "standard": "Standard (Plain Text)",
     "standard_desc": "Newline-separated list of IOC values. Compatible with most firewalls and SIEMs.",
     "paloalto": "Palo Alto EDL",

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ThreatGate v{{ version }} Commander Edition - IOC Management Portal</title>
+    <title>ZIoCHub v{{ version }} - IOC & YARA Management Portal</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <!-- Fonts: system fallbacks only (no external requests). See style.css for Inter/JetBrains Mono fallbacks. -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flag-icons.min.css') }}">
@@ -52,14 +52,14 @@
             <!-- LEFT: Logo + Navigation Tabs -->
             <div class="navbar-left">
                 <div class="navbar-logo">
-                    <img src="{{ url_for('static', filename='threatgate_smaller.png') }}" alt="ThreatGate" class="w-14 h-14 object-contain flex-shrink-0" style="filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.4));">
+                    <img src="{{ url_for('static', filename='ziochub_smaller.png') }}" alt="ZIoCHub" class="w-14 h-14 object-contain flex-shrink-0" style="filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.4));">
                     <div>
                         <h1 class="text-2xl font-bold tracking-wider neon-text flex items-center gap-2">
-                            <span class="text-white brand-name">ThreatGate v{{ version }}</span>
-                            <span class="text-xs font-semibold px-2 py-1 rounded commander-badge">Commander Edition</span>
+                            <span class="text-white brand-name">ZIoCHub v{{ version }}</span>
+                            <span class="text-xs font-semibold px-2 py-1 rounded commander-badge">IOC & YARA Hub</span>
                         </h1>
-                        <p class="text-xs text-secondary mt-0.5 tracking-wide">Centralized IOC Management & Threat Intelligence Platform</p>
-                        <p class="text-xs text-secondary tracking-wide">Created by <span class="text-[#00d4ff] font-semibold creator-name">Zw3rd</span></p>
+                        <p class="text-xs text-secondary mt-0.5 tracking-wide">Zwerd Indicators of Compromise Hub – platform for IOC & YARA management</p>
+                        <p class="text-xs text-secondary tracking-wide">Created by <a href="https://zwerd.github.io/" target="_blank" rel="noopener noreferrer" class="text-[#00d4ff] font-semibold creator-name hover:underline">Zwerd</a></p>
                     </div>
                 </div>
                 <nav class="navbar-tabs">
@@ -221,7 +221,7 @@
                             <!-- Column 5: Live Feed -->
                             <div class="bg-tertiary rounded-lg p-4 flex flex-col min-h-0 h-full overflow-hidden">
                                 <h4 class="text-lg font-semibold mb-3 text-secondary flex items-center gap-2 flex-shrink-0">
-                                    <img src="{{ url_for('static', filename='threatgate_smaller.png') }}" alt="" class="w-5 h-5 object-contain">
+                                    <img src="{{ url_for('static', filename='ziochub_smaller.png') }}" alt="" class="w-5 h-5 object-contain">
                                     <span data-i18n="stats.charts.live_feed">Live Feed</span>
                                 </h4>
                                 <div id="liveFeed" class="flex-1 min-h-0 overflow-y-auto space-y-2">
@@ -339,18 +339,18 @@
                                 <label class="block mb-2 text-sm font-semibold" data-i18n="submit.comment">Comment</label>
                                 <textarea id="iocComment" rows="3" class="w-full" data-i18n-placeholder="submit.comment_placeholder"></textarea>
                             </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 items-end">
-                                <div>
-                                    <label class="block text-xs font-semibold mb-0.5" data-i18n="search.col.tags">Tags</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 items-start">
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold mb-1 leading-normal" data-i18n="search.col.tags">Tags</label>
                                     <input type="text" id="iocTags" class="w-full h-8 text-sm" placeholder="malware, phishing" data-i18n-placeholder="submit.tags_placeholder">
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold mb-0.5" data-i18n="submit.ticket_id">Ticket ID</label>
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold mb-1 leading-normal" data-i18n="submit.ticket_id">Ticket ID</label>
                                     <input type="text" id="iocTicketId" class="w-full h-8 text-sm" placeholder="Auto if empty" data-i18n-placeholder="bulk.ticket_auto_placeholder">
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold mb-0.5" data-i18n="submit.ttl">TTL *</label>
-                                    <select id="iocTTL" required class="w-full h-8 text-sm">
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold mb-1 leading-normal" data-i18n="submit.ttl">TTL *</label>
+                                    <select id="iocTTL" required class="w-full text-sm submit-row-select">
                                         <option value="Permanent" data-i18n="ttl.permanent">Permanent</option>
                                         <option value="1 Week" data-i18n="ttl.1week">1 Week</option>
                                         <option value="1 Month" data-i18n="ttl.1month">1 Month</option>
@@ -358,15 +358,15 @@
                                         <option value="1 Year" data-i18n="ttl.1year">1 Year</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold mb-0.5" data-i18n="submit.campaign">Campaign</label>
-                                    <select id="iocCampaignSelect" class="w-full h-8 text-sm">
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold mb-1 leading-normal" data-i18n="submit.campaign">Campaign</label>
+                                    <select id="iocCampaignSelect" class="w-full text-sm submit-row-select">
                                         <option value="" data-i18n="submit.none">- None -</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold mb-0.5" data-i18n="submit.assign_to">Assign to user</label>
-                                    <select id="iocAssignTo" class="w-full h-8 text-sm">
+                                <div class="flex flex-col">
+                                    <label class="block text-xs font-semibold mb-1 leading-normal" data-i18n="submit.assign_to">Assign to user</label>
+                                    <select id="iocAssignTo" class="w-full text-sm submit-row-select">
                                         <option value="" data-i18n="submit.me">- Me -</option>
                                     </select>
                                 </div>
@@ -866,7 +866,7 @@
                             <button type="button" id="feedPulseExportBtn" class="btn-cmd-primary btn-cmd-sm" data-i18n="feedpulse.export_report">Export Report</button>
                             <a id="feedPulseAllowlistLink" href="/admin/allowlist" target="_blank" class="hidden btn-cmd-neutral btn-cmd-sm">Allowlist</a>
                             <button type="button" id="feedCatalogBtn" class="btn-cmd-neutral btn-cmd-sm flex items-center gap-1.5">
-                                <img src="{{ url_for('static', filename='threatgate_smaller.png') }}" alt="" class="w-4 h-4 object-contain">
+                                <img src="{{ url_for('static', filename='ziochub_smaller.png') }}" alt="" class="w-4 h-4 object-contain">
                                 <span data-i18n="feedpulse.feed_catalog">Feed Catalog</span>
                             </button>
                         </div>
@@ -1623,12 +1623,12 @@
         <div class="bg-secondary rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col border border-white/10">
             <div class="flex items-center justify-between mb-4 flex-shrink-0">
                 <h3 class="text-xl font-bold accent-blue flex items-center gap-2">
-                    <img src="{{ url_for('static', filename='threatgate_smaller.png') }}" alt="" class="w-7 h-7 object-contain">
+                    <img src="{{ url_for('static', filename='ziochub_smaller.png') }}" alt="" class="w-7 h-7 object-contain">
                     <span data-i18n="feed_catalog.title">Available Feed Endpoints</span>
                 </h3>
                 <button type="button" id="feedCatalogClose" class="text-secondary hover:text-primary text-2xl leading-none">&times;</button>
             </div>
-            <p class="text-sm text-secondary mb-4 flex-shrink-0" data-i18n="feed_catalog.description">Use these URLs to integrate ThreatGate feeds into your security devices. All feeds serve only active (non-expired) IOCs in plain text.</p>
+            <p class="text-sm text-secondary mb-4 flex-shrink-0" data-i18n="feed_catalog.description">Use these URLs to integrate ZIoCHub feeds into your security devices. All feeds serve only active (non-expired) IOCs in plain text.</p>
             <div class="overflow-y-auto flex-1 min-h-0 space-y-5 text-sm">
 
                 <!-- Standard Plain Text -->

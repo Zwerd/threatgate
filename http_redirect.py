@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-ThreatGate - HTTP to HTTPS Redirect Server
-===========================================
+ZIoCHub - HTTP to HTTPS Redirect Server
+========================================
 Lightweight HTTP server that responds to every request with a 301 redirect
 to the same URL over HTTPS on the configured port.
 
-Runs as a systemd service alongside the main ThreatGate HTTPS service.
+Runs as a systemd service alongside the main ZIoCHub HTTPS service.
 
 Environment variables:
     REDIRECT_HTTP_PORT  - port to listen on for HTTP  (default: 8080)

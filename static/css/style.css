@@ -432,6 +432,22 @@ header.neon-header {
     font-weight: 700;
 }
 
+/* Submit IOCs: keep row labels (TTL, Campaign, Assign to user) fully visible – no clipping */
+#bulk-wrapper-single .grid.items-start label {
+    min-height: 1.25rem;
+    overflow: visible;
+    padding: 0;
+}
+
+/* Submit IOCs: select fields (TTL, Campaign, Assign to user) – default text must not be clipped */
+#bulk-wrapper-single .submit-row-select {
+    min-height: 2.25rem;
+    height: auto;
+    padding: 0.375rem 0.5rem;
+    line-height: 1.25;
+    box-sizing: border-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .neon-header::after { animation: none; }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-ThreatGate - Lab Users Setup Script
-====================================
+ZIoCHub - Lab Users Setup Script
+=================================
 Creates the lab analyst team from users/users.json.
 Prompts for a single password that will be set for ALL users.
 
@@ -15,9 +15,9 @@ Users are defined in users/users.json. Each user can have:
   - description (role_description in profile)
   - image (filename in users/ folder → copied to static/avatars/)
 
-NOTE: Stop the ThreatGate service before running, or run while service is
+NOTE: Stop the ZIoCHub service before running, or run while service is
       stopped to avoid session issues:
-          sudo systemctl stop threatgate
+          sudo systemctl stop ziochub
 """
 
 import argparse
@@ -37,7 +37,7 @@ except ImportError:
 # --- resolve paths (same logic as app.py) ---
 _base_dir = os.path.dirname(os.path.abspath(__file__))
 _data_dir = (_config and _config.DATA_DIR) or os.path.join(_base_dir, 'data')
-_db_path = (_config and getattr(_config, 'DB_PATH', None)) or os.path.join(_data_dir, 'threatgate.db')
+_db_path = (_config and getattr(_config, 'DB_PATH', None)) or os.path.join(_data_dir, 'ziochub.db')
 _users_dir = os.path.join(_base_dir, 'users')
 _users_json = os.path.join(_users_dir, 'users.json')
 _avatars_dir = os.path.join(_base_dir, 'static', 'avatars')
@@ -48,7 +48,7 @@ try:
     from werkzeug.security import generate_password_hash
 except ImportError:
     print("ERROR: werkzeug is not installed. Activate the venv first:")
-    print("  source /opt/threatgate/venv/bin/activate")
+    print("  source /opt/ziochub/venv/bin/activate")
     sys.exit(1)
 
 COLORS = {
@@ -219,11 +219,11 @@ def create_users(db_path, password, users_list):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ThreatGate - Create lab users from users/users.json')
+    parser = argparse.ArgumentParser(description='ZIoCHub - Create lab users from users/users.json')
     parser.add_argument('--password', '-p', help='Password for all users (prompted if omitted)')
     args = parser.parse_args()
 
-    print(f"\n{c('=== ThreatGate Lab Users Setup ===', 'bold')}")
+    print(f"\n{c('=== ZIoCHub Lab Users Setup ===', 'bold')}")
     print(f"  Database: {_db_path}")
     print(f"  Users:    {_users_json}")
 

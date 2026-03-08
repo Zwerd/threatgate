@@ -1,5 +1,5 @@
 """
-SQLAlchemy models for ThreatGate. Uses db from extensions (no app import).
+SQLAlchemy models for ZIoCHub. Uses db from extensions (no app import).
 """
 from datetime import datetime, timezone
 from sqlalchemy import UniqueConstraint

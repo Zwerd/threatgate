@@ -64,6 +64,18 @@
             <button type="submit" class="px-4 py-2 rounded-lg font-semibold bg-cyan-600 hover:bg-cyan-500 text-white transition">Save LDAP Settings</button>
         </form>
         <div id="settingsMessage" class="mt-4 hidden text-sm"></div>
+
+        <div class="mt-6 pt-6 border-t border-white/10">
+            <h4 class="text-sm font-semibold text-secondary mb-2">Test LDAP connection</h4>
+            <p class="text-secondary text-xs mb-3">Uses the values currently in the form above (not yet saved). Run this to see each step and find where the connection fails.</p>
+            <div class="flex items-center gap-3 pt-2">
+                <button type="button" id="ldapTestBtn" class="px-4 py-2 rounded-lg font-semibold bg-yellow-600 hover:bg-yellow-500 text-white transition">Test Connection</button>
+            </div>
+            <div id="ldapTestLog" class="mt-3 hidden rounded-lg border border-white/10 bg-black/30 p-4 font-mono text-xs overflow-x-auto overflow-y-auto max-h-64">
+                <div id="ldapTestLogContent" class="space-y-1 whitespace-pre-wrap"></div>
+            </div>
+            <div id="ldapTestSpinner" class="mt-2 hidden text-amber-400 text-sm">Testing...</div>
+        </div>
     </div>
 </div>
 
@@ -71,7 +83,7 @@
 <div id="settings-tab-misp" class="settings-tab-pane hidden">
     <div class="bg-tertiary rounded-xl border border-white/10 p-6 max-w-2xl">
         <h3 class="text-lg font-semibold accent-blue mb-4">MISP Integration</h3>
-        <p class="text-secondary text-sm mb-6">Pull threat indicators from a local MISP instance into ThreatGate automatically.</p>
+        <p class="text-secondary text-sm mb-6">Pull threat indicators from a local MISP instance into ZIoCHub automatically.</p>
 
         <form id="mispForm" class="space-y-4">
             <div>
@@ -265,6 +277,51 @@ document.getElementById('settingsForm').addEventListener('submit', async functio
         msgEl.classList.add('text-red-400');
         msgEl.textContent = 'Network error.';
     }
+});
+
+/* ---------- LDAP Test Connection ---------- */
+document.getElementById('ldapTestBtn').addEventListener('click', async function() {
+    var logEl = document.getElementById('ldapTestLog');
+    var contentEl = document.getElementById('ldapTestLogContent');
+    var spinnerEl = document.getElementById('ldapTestSpinner');
+    logEl.classList.add('hidden');
+    contentEl.innerHTML = '';
+    spinnerEl.classList.remove('hidden');
+    this.disabled = true;
+    try {
+        var res = await fetch('/api/admin/ldap/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ldap_url: document.getElementById('ldap_url').value,
+                ldap_base_dn: document.getElementById('ldap_base_dn').value,
+                ldap_bind_dn: document.getElementById('ldap_bind_dn').value,
+                ldap_bind_password: document.getElementById('ldap_bind_password').value
+            })
+        });
+        var data = await res.json();
+        spinnerEl.classList.add('hidden');
+        logEl.classList.remove('hidden');
+        if (data.success && data.steps) {
+            var lines = [];
+            data.steps.forEach(function(s) {
+                var icon = s.status === 'ok' ? '\u2713' : (s.status === 'fail' ? '\u2717' : '?');
+                var color = s.status === 'ok' ? 'text-green-400' : (s.status === 'fail' ? 'text-red-400' : 'text-secondary');
+                lines.push({ icon: icon, color: color, step: s.step, msg: s.message || '' });
+            });
+            contentEl.innerHTML = lines.map(function(l) {
+                var msg = l.msg ? ' \u2014 ' + l.msg : '';
+                return '<div class="' + l.color + '">[' + l.icon + '] ' + l.step + msg + '</div>';
+            }).join('');
+        } else {
+            contentEl.innerHTML = '<div class="text-red-400">Error: ' + (data.message || 'Unknown error') + '</div>';
+        }
+    } catch (err) {
+        spinnerEl.classList.add('hidden');
+        logEl.classList.remove('hidden');
+        contentEl.innerHTML = '<div class="text-red-400">Network error: ' + (err.message || 'Failed') + '</div>';
+    }
+    this.disabled = false;
 });
 
 /* ---------- Syslog save ---------- */

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-ThreatGate - Expired IOC Cleanup Script
-========================================
+ZIoCHub - Expired IOC Cleanup Script
+=====================================
 Deletes IOC rows whose expiration_date has passed from the SQLite database,
 logs each deletion to ioc_history, then runs VACUUM to reclaim disk space.
 
-Designed to be triggered by systemd timer (threatgate-cleaner.timer).
+Designed to be triggered by systemd timer (ziochub-cleaner.timer).
 All output goes to stdout/stderr so systemd captures it in the journal.
 """
 
@@ -16,9 +16,12 @@ from datetime import datetime
 
 
 def get_db_path():
-    """Resolve the path to threatgate.db relative to this script's location."""
+    """Resolve the path to ziochub.db. Uses ZIOCHUB_DATA_DIR if set, else relative to script."""
+    data_dir = os.environ.get("ZIOCHUB_DATA_DIR", "").strip()
+    if data_dir:
+        return os.path.join(data_dir, "ziochub.db")
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_dir, "data", "threatgate.db")
+    return os.path.join(base_dir, "data", "ziochub.db")
 
 
 def clean_expired_iocs(db_path):

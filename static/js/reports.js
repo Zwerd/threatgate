@@ -859,8 +859,8 @@
                 });
             }
             Promise.all([
-                loadOne('/static/threatgate.png').then(function (d) { return d || loadOne('/static/threatgate_smaller.png'); }),
-                loadOne('/static/threatgate_smaller.png').then(function (d) { return d || loadOne('/static/threatgate.png'); })
+                loadOne('/static/ziochub.png').then(function (d) { return d || loadOne('/static/ziochub_smaller.png'); }),
+                loadOne('/static/ziochub_smaller.png').then(function (d) { return d || loadOne('/static/ziochub.png'); })
             ]).then(function (arr) {
                 resolve({ cover: arr[0], header: arr[1] });
             });
@@ -889,11 +889,11 @@
             pdf.setFontSize(10);
             pdf.setTextColor(0, 102, 204);
             pdf.setFont(undefined, 'bold');
-            pdf.text('ThreatGate', margin + 14, 14);
+            pdf.text('ZIoCHub', margin + 14, 14);
             pdf.setFont(undefined, 'normal');
             pdf.setFontSize(9);
             pdf.setTextColor(100, 100, 100);
-            pdf.text('Centralized IOC Management', pageW - margin, 14, { align: 'right' });
+            pdf.text('IOC & YARA Management', pageW - margin, 14, { align: 'right' });
             pdf.setDrawColor(200, 200, 200);
             pdf.setLineWidth(0.2);
             pdf.line(margin, 20, pageW - margin, 20);
@@ -907,11 +907,11 @@
             pdf.setFontSize(10);
             pdf.setTextColor(0, 102, 204);
             pdf.setFont(undefined, 'bold');
-            pdf.text('ThreatGate', margin + 14, 14);
+            pdf.text('ZIoCHub', margin + 14, 14);
             pdf.setFont(undefined, 'normal');
             pdf.setFontSize(9);
             pdf.setTextColor(100, 100, 100);
-            pdf.text('Centralized IOC Management', pageW - margin, 14, { align: 'right' });
+            pdf.text('IOC & YARA Management', pageW - margin, 14, { align: 'right' });
             pdf.setDrawColor(200, 200, 200);
             pdf.setLineWidth(0.2);
             pdf.line(margin, 20, pageW - margin, 20);
@@ -982,7 +982,7 @@
         pdf.setFontSize(22);
         pdf.setTextColor(0, 102, 204);
         pdf.setFont(undefined, 'bold');
-        pdf.text('ThreatGate', pageW / 2, coverLogo ? 110 : 50, { align: 'center' });
+        pdf.text('ZIoCHub', pageW / 2, coverLogo ? 110 : 50, { align: 'center' });
         pdf.setFont(undefined, 'normal');
         pdf.setFontSize(10);
         pdf.setTextColor(100, 100, 100);
@@ -1011,11 +1011,11 @@
         pdf.setFontSize(10);
         pdf.setTextColor(0, 102, 204);
         pdf.setFont(undefined, 'bold');
-        pdf.text('ThreatGate', margin + 14, 14);
+        pdf.text('ZIoCHub', margin + 14, 14);
         pdf.setFont(undefined, 'normal');
         pdf.setFontSize(9);
         pdf.setTextColor(100, 100, 100);
-        pdf.text('Centralized IOC Management', pageW - margin, 14, { align: 'right' });
+        pdf.text('IOC & YARA Management', pageW - margin, 14, { align: 'right' });
         pdf.line(margin, 20, pageW - margin, 20);
         var tocY = 35;
         pdf.setFontSize(14);
@@ -1353,7 +1353,7 @@
     }
 
     function _pdfFilename(data) {
-        return 'ThreatGate_Report_' + (data.period || 'week') + '_' + (data.start_date || 'unknown') + '.pdf';
+        return 'ZIoCHub_Report_' + (data.period || 'week') + '_' + (data.start_date || 'unknown') + '.pdf';
     }
 
     // ── Initialize on tab activation ─────────────────────────────

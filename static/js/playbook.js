@@ -13,7 +13,7 @@
 <li><strong>Left panel</strong> - Tabs for each recommended online tool or group of resources. Use the search box to filter by name, and the tag buttons to filter by type (e.g. IP, Hash, or <span class="playbook-tab-tag">Essential</span> for the most recommended tools 🔥).</li>
 <li><strong>Right panel</strong> - For each tab you get a short description, practical examples, and tips so you know how to use the tool for IOC hunting.</li>
 </ul>
-<p>When you have submitted an IOC to ThreatGate, use the workflow below as the next steps.</p>
+<p>When you have submitted an IOC to ZIoCHub, use the workflow below as the next steps.</p>
 <div class="playbook-divider"></div>
 <h4 class="playbook-section-title">Recommended workflow after submitting an IOC</h4>
 <div class="playbook-section-content">
@@ -21,7 +21,7 @@
 <li><strong>Validate the indicator</strong> - Use VirusTotal or similar to confirm the IOC is malicious and see detection rates and related indicators.</li>
 <li><strong>Enrich context</strong> - Search the same IOC in OTX, AbuseIPDB, or ThreatCrowd to find pulses, campaigns, and related infrastructure.</li>
 <li><strong>Map to threats</strong> - Use MITRE ATT&CK or Malpedia to identify malware families and threat groups, and to pull IOCs from known campaigns.</li>
-<li><strong>Document and share</strong> - Add comments and tags in ThreatGate, link to tickets, and assign to campaigns so the team can reuse the context.</li>
+<li><strong>Document and share</strong> - Add comments and tags in ZIoCHub, link to tickets, and assign to campaigns so the team can reuse the context.</li>
 </ol>
 <p>Filter by <span class="playbook-tab-tag">Essential</span> to see only the most recommended tools (🔥) for day-to-day IOC hunting.</p>
 </div>
@@ -76,7 +76,7 @@
 <ul>
 <li>Use the API (requires free API key) to automate IOC lookups in your workflow</li>
 <li>Check "Community" tab for analyst notes and attribution hints</li>
-<li>Export related IOCs as CSV for bulk import into ThreatGate</li>
+<li>Export related IOCs as CSV for bulk import into ZIoCHub</li>
 <li>Set up VT Intelligence queries for ongoing monitoring of specific indicators</li>
 </ul>
 `
@@ -150,7 +150,7 @@
 <li>If the IP is still active</li>
 </ul>
 <p><strong>Example 3: Bulk IP checking</strong></p>
-<p>Use the API (free tier available) to check multiple IPs programmatically. Useful for validating IPs before adding them to ThreatGate.</p>
+<p>Use the API (free tier available) to check multiple IPs programmatically. Useful for validating IPs before adding them to ZIoCHub.</p>
 `,
             tips: `
 <p><strong>IOC Search Tips:</strong></p>
@@ -257,7 +257,7 @@
 <li>Use URLhaus API for automated URL checks</li>
 <li>Subscribe to URLhaus feeds for ongoing monitoring</li>
 <li>Check "Tags" to understand malware families (e.g., "Emotet", "TrickBot")</li>
-<li>Export IOCs as CSV for bulk import into ThreatGate</li>
+<li>Export IOCs as CSV for bulk import into ZIoCHub</li>
 </ul>
 `
         },
@@ -332,7 +332,7 @@
 <li>MITRE ATT&CK techniques mapped</li>
 <li>Threat score and verdict</li>
 </ul>
-<p>Extract all IOCs (IPs, domains, URLs, hashes) from the report and add them to ThreatGate.</p>
+<p>Extract all IOCs (IPs, domains, URLs, hashes) from the report and add them to ZIoCHub.</p>
 <p><strong>Example 2: Searching by IOC</strong></p>
 <p>Search an IP address or domain to find:</p>
 <ul>
@@ -356,7 +356,7 @@
 <ul>
 <li>Create a free account to access full reports and download PCAPs</li>
 <li>Use the API to automate file submissions and IOC extraction</li>
-<li>Export IOCs as CSV or STIX for import into ThreatGate</li>
+<li>Export IOCs as CSV or STIX for import into ZIoCHub</li>
 <li>Check "Threat Indicators" section for C2 IPs, domains, and URLs</li>
 <li>Review "MITRE ATT&CK" mapping to understand attack techniques</li>
 </ul>
@@ -407,7 +407,7 @@
 <li>Download YARA rules and adapt them for your environment</li>
 <li>Use Malpedia to map IOCs to threat actors and campaigns</li>
 <li>Check "References" for detailed analysis reports</li>
-<li>Export IOCs as JSON/CSV for import into ThreatGate</li>
+<li>Export IOCs as JSON/CSV for import into ZIoCHub</li>
 </ul>
 <p><strong>YARA Tips:</strong></p>
 <ul>
@@ -457,7 +457,7 @@
 <li>Subscribe to Mandiant threat intelligence feeds for ongoing updates</li>
 <li>Use their API (if available) to automate IOC lookups</li>
 <li>Check "Threat Intelligence" section for latest research</li>
-<li>Export IOCs from reports for import into ThreatGate</li>
+<li>Export IOCs from reports for import into ZIoCHub</li>
 </ul>
 `
         },
@@ -550,7 +550,7 @@
 <ul>
 <li>Use the dashboard as a starting point for APT research</li>
 <li>Follow links to detailed reports for deeper analysis</li>
-<li>Export IOCs from campaigns for import into ThreatGate</li>
+<li>Export IOCs from campaigns for import into ZIoCHub</li>
 <li>Check the timeline to understand campaign evolution</li>
 </ul>
 `
@@ -826,7 +826,7 @@
                 {
                     name: 'YARA Playground',
                     url: 'https://yaraplayground.com',
-                    description: 'Free browser-based YARA validator and testing tool. Paste your rule and get real-time syntax errors and line numbers. You can also upload a sample file (up to 10 MB) to test if the rule matches. Runs entirely in the browser (WebAssembly) so rules and samples never leave your device. Essential for checking YARA syntax before uploading to ThreatGate.'
+                    description: 'Free browser-based YARA validator and testing tool. Paste your rule and get real-time syntax errors and line numbers. You can also upload a sample file (up to 10 MB) to test if the rule matches. Runs entirely in the browser (WebAssembly) so rules and samples never leave your device. Essential for checking YARA syntax before uploading to ZIoCHub.'
                 },
                 {
                     name: 'YARA Documentation (Syntax)',

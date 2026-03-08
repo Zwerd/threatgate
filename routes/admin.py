@@ -233,6 +233,26 @@ def save_settings():
         return _api_error(str(e), 500)
 
 
+@bp.route('/ldap/test', methods=['POST'])
+@admin_required
+def ldap_test():
+    """Run LDAP connection test step-by-step; return list of steps for Admin UI."""
+    _api_ok, _api_error = _from_app('_api_ok', '_api_error')
+    try:
+        from utils.ldap_auth import test_ldap_connection_steps
+        data = request.get_json() or {}
+        ldap_url = (data.get('ldap_url') or '').strip()
+        base_dn = (data.get('ldap_base_dn') or '').strip()
+        bind_dn = (data.get('ldap_bind_dn') or '').strip()
+        bind_password = data.get('ldap_bind_password') or ''
+        steps = test_ldap_connection_steps(ldap_url, base_dn, bind_dn, bind_password)
+        success = all(s.get('status') == 'ok' for s in steps)
+        return _api_ok(data={'success': success, 'steps': steps})
+    except Exception as e:
+        logging.exception('admin ldap_test failed')
+        return _api_error(str(e), 500)
+
+
 @bp.route('/logs/tail')
 @admin_required
 def logs_tail():
@@ -276,6 +296,7 @@ def list_users():
             'source': u.source,
             'is_admin': u.is_admin,
             'is_active': u.is_active,
+            'must_change_password': getattr(u, 'must_change_password', False),
             'display_name': (profile and profile.display_name) or u.username,
             'avatar_url': _avatar_url(profile),
             'last_login_at': u.last_login_at.isoformat() if u.last_login_at else None,
@@ -303,12 +324,14 @@ def create_user():
             return jsonify({'success': False, 'message': 'Password must be at least 4 characters'}), 400
         if User.query.filter_by(username=username).first():
             return jsonify({'success': False, 'message': 'Username already exists'}), 409
+        must_change = bool(data.get('must_change_password', False))
         user = User(
             username=username,
             password_hash=hash_password(password),
             source='local',
             is_admin=is_admin,
             is_active=True,
+            must_change_password=must_change,
         )
         db.session.add(user)
         _commit_with_retry()
@@ -351,6 +374,8 @@ def update_user(user_id):
             if len(pwd) < 4:
                 return jsonify({'success': False, 'message': 'Password must be at least 4 characters'}), 400
             user.password_hash = hash_password(pwd)
+        if 'must_change_password' in data:
+            user.must_change_password = bool(data['must_change_password'])
         _commit_with_retry()
         audit_log('admin_user_update', f'user_id={user_id} by={current_user.username}')
         return jsonify({'success': True, 'message': f'User {user.username} updated'})

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ThreatGate - Gunicorn launcher with automatic SSL detection
+# ZIoCHub - Gunicorn launcher with automatic SSL detection
 # If SSL cert+key exist in data/ssl/, gunicorn serves HTTPS.
 # Otherwise falls back to plain HTTP.
 
@@ -9,8 +9,8 @@ APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 CERT="${APP_DIR}/data/ssl/cert.pem"
 KEY="${APP_DIR}/data/ssl/key.pem"
 CA="${APP_DIR}/data/ssl/ca.pem"
-PORT="${THREATGATE_PORT:-8443}"
-WORKERS="${THREATGATE_WORKERS:-3}"
+PORT="${ZIOCHUB_PORT:-8443}"
+WORKERS="${ZIOCHUB_WORKERS:-3}"
 
 SSL_ARGS=""
 if [[ -f "$CERT" && -f "$KEY" ]]; then

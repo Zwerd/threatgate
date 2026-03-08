@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-ThreatGate - Data Reset Script
-===============================
+ZIoCHub - Data Reset Script
+============================
 Wipes operational data from the SQLite database so the system returns to
 a clean state (useful for dev/test or before a fresh deployment).
 
@@ -22,8 +22,8 @@ Usage:
 
 Flags can be combined:  python reset_data.py --iocs --yara --history --yes
 
-NOTE: Stop the ThreatGate service before running this script to avoid
-      database-lock conflicts:  sudo systemctl stop threatgate
+NOTE: Stop the ZIoCHub service before running this script to avoid
+      database-lock conflicts:  sudo systemctl stop ziochub
 """
 
 import argparse
@@ -41,7 +41,7 @@ except ImportError:
 
 _base_dir = os.path.dirname(os.path.abspath(__file__))
 _data_dir = (_config and _config.DATA_DIR) or os.path.join(_base_dir, 'data')
-_db_path = (_config and getattr(_config, 'DB_PATH', None)) or os.path.join(_data_dir, 'threatgate.db')
+_db_path = (_config and getattr(_config, 'DB_PATH', None)) or os.path.join(_data_dir, 'ziochub.db')
 
 DATA_YARA = os.path.join(_data_dir, 'YARA')
 DATA_YARA_PENDING = os.path.join(_data_dir, 'YARA_pending')
@@ -291,9 +291,9 @@ def vacuum(conn):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='ThreatGate - Data Reset Script',
+        description='ZIoCHub - Data Reset Script',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='Stop the ThreatGate service before running:\n  sudo systemctl stop threatgate',
+        epilog='Stop the ZIoCHub service before running:\n  sudo systemctl stop ziochub',
     )
     parser.add_argument('--all', action='store_true', help='Wipe all data')
     parser.add_argument('--iocs', action='store_true', help='Wipe IOCs + IOC history')
@@ -313,7 +313,7 @@ def main():
                            args.history, args.champs, args.sessions, args.exclusions,
                            args.settings, args.playbook])
 
-    print(f"\n{c('=== ThreatGate Data Reset ===', 'bold')}")
+    print(f"\n{c('=== ZIoCHub Data Reset ===', 'bold')}")
     print(f"  Database: {_db_path}")
     print(f"  Time:     {datetime.now().isoformat()}")
 

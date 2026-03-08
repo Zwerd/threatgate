@@ -1,5 +1,5 @@
 """
-ThreatGate - IOC & YARA Management (SQLite backend).
+ZIoCHub - IOC & YARA Management (SQLite backend).
 
 MIGRATION: Before first run with SQLite, manually backup your data/ folder:
     - Copy the entire data/ directory (e.g. data/ -> data_backup_YYYYMMDD/)
@@ -98,7 +98,7 @@ def _get_secret_key():
 
 app.config['SECRET_KEY'] = _get_secret_key()
 app.config['MAX_CONTENT_LENGTH'] = (_config and getattr(_config, 'MAX_CONTENT_LENGTH', None)) or 16 * 1024 * 1024
-_db_path = (_config and getattr(_config, 'DB_PATH', None)) or os.path.join(_data_dir, 'threatgate.db')
+_db_path = (_config and getattr(_config, 'DB_PATH', None)) or os.path.join(_data_dir, 'ziochub.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + _db_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['DATA_YARA'] = DATA_YARA

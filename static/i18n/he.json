@@ -1,5 +1,5 @@
 {
-  "title": "ThreatGate v$VERSION",
+  "title": "ZIoCHub v$VERSION",
   "auth": {
     "login": "התחבר",
     "logout": "התנתק",
@@ -424,7 +424,7 @@
   },
   "feed_catalog": {
     "title": "נקודות קצה זמינות לפידים",
-    "description": "השתמש בכתובות אלו כדי לשלב את פידי ThreatGate במכשירי האבטחה שלך. כל הפידים מציגים רק IOCs פעילים (שלא פג תוקפם) בטקסט רגיל.",
+    "description": "השתמש בכתובות אלו כדי לשלב את פידי ZIoCHub במכשירי האבטחה שלך. כל הפידים מציגים רק IOCs פעילים (שלא פג תוקפם) בטקסט רגיל.",
     "standard": "סטנדרטי (טקסט רגיל)",
     "standard_desc": "רשימה מופרדת בשורות חדשות. תואם לרוב חומות האש ומערכות SIEM.",
     "paloalto": "Palo Alto EDL",

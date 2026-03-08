@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 import logging
 
-_log = logging.getLogger('threatgate.ldap')
+_log = logging.getLogger('ziochub.ldap')
 
 LDAP_AVAILABLE = False
 try:
@@ -121,6 +121,72 @@ def try_ldap_mock_dev(username: str, password: str) -> tuple[bool, str | None]:
     if (username or '').strip().lower() == 'ldaptest' and password == 'ldaptest':
         return True, 'LDAP Test User'
     return False, None
+
+
+def test_ldap_connection_steps(
+    ldap_url: str,
+    base_dn: str,
+    bind_dn: str,
+    bind_password: str,
+) -> list[dict]:
+    """
+    Run LDAP connection test step-by-step for Admin UI.
+    Returns list of { "step": str, "status": "ok"|"fail"|"skip", "message": str }.
+    """
+    steps: list[dict] = []
+
+    def add(step: str, status: str, message: str = ""):
+        steps.append({"step": step, "status": status, "message": message or ""})
+
+    # Step 1: ldap3 available
+    if not LDAP_AVAILABLE:
+        add("Check ldap3", "fail", "ldap3 not installed. Install with: pip install ldap3")
+        return steps
+    add("Check ldap3", "ok", "ldap3 is installed")
+
+    # Step 2: URL configured
+    url_clean = (ldap_url or "").strip()
+    if not url_clean:
+        add("LDAP URL", "fail", "LDAP URL is empty. Enter e.g. ldap://dc.example.com or ldaps://dc.example.com")
+        return steps
+    if not url_clean.startswith(("ldap://", "ldaps://")):
+        add("LDAP URL", "fail", "URL must start with ldap:// or ldaps://")
+        return steps
+    add("LDAP URL", "ok", url_clean)
+
+    # Step 3: Create server (DNS / connect)
+    try:
+        server = Server(url_clean, get_info=ALL)
+        add("Create server object", "ok", "Server object created")
+    except Exception as e:
+        add("Create server object", "fail", str(e)[:200])
+        return steps
+
+    # Step 4: Bind with service account
+    try:
+        conn = Connection(
+            server,
+            user=bind_dn.strip() if bind_dn else None,
+            password=bind_password if bind_password else None,
+            auto_bind=True,
+            raise_exceptions=False,
+        )
+        if conn.bound:
+            add("Bind (service account)", "ok", "Connected and bound successfully")
+            try:
+                conn.unbind()
+                add("Unbind", "ok", "Disconnected")
+            except Exception as ub:
+                add("Unbind", "fail", str(ub)[:100])
+        else:
+            err = conn.result.get("message", "Unknown") if getattr(conn, "result", None) else "Bind failed"
+            add("Bind (service account)", "fail", str(err)[:200])
+    except LDAPException as e:
+        add("Bind (service account)", "fail", str(e)[:200])
+    except Exception as e:
+        add("Bind (service account)", "fail", str(e)[:200])
+
+    return steps
 
 
 def check_ldap_reachable(

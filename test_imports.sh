@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  ThreatGate — Import Verification Test
+#  ZIoCHub — Import Verification Test
 # ============================================================================
 #  Tests Python imports after installation to verify all modules are available.
 #
 #  Usage:  ./test_imports.sh [venv_path]
-#  Default: ./test_imports.sh /opt/threatgate/venv
+#  Default: ./test_imports.sh /opt/ziochub/venv
 # ============================================================================
 set -euo pipefail
 
@@ -15,7 +15,7 @@ ok()   { echo -e "${GREEN}[ OK ]${NC}  $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 fail() { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 
-VENV_DIR="${1:-/opt/threatgate/venv}"
+VENV_DIR="${1:-/opt/ziochub/venv}"
 
 if [[ ! -d "$VENV_DIR" ]]; then
     fail "Virtual environment not found at: $VENV_DIR"

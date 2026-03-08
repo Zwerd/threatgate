@@ -22,6 +22,10 @@
                        class="w-full px-3 py-2 rounded-lg bg-tertiary border border-white/10 text-primary focus:border-accent-green">
             </div>
             <div class="flex items-center gap-2">
+                <input type="checkbox" id="new_must_change_password" name="must_change_password" class="rounded border-white/20">
+                <label for="new_must_change_password" class="text-sm font-medium text-secondary">Must change password on first login</label>
+            </div>
+            <div class="flex items-center gap-2">
                 <input type="checkbox" id="new_is_admin" name="is_admin" class="rounded border-white/20">
                 <label for="new_is_admin" class="text-sm font-medium text-secondary">Admin</label>
             </div>
@@ -91,6 +95,10 @@
                 <input type="password" id="edit_password" placeholder="••••••••" class="w-full px-3 py-2 rounded-lg bg-tertiary border border-white/10 text-primary focus:border-accent-green">
             </div>
             <div class="flex items-center gap-2">
+                <input type="checkbox" id="edit_must_change_password" class="rounded border-white/20">
+                <label for="edit_must_change_password" class="text-sm font-medium text-secondary">Must change password on next login</label>
+            </div>
+            <div class="flex items-center gap-2">
                 <input type="checkbox" id="edit_is_admin" class="rounded border-white/20">
                 <label for="edit_is_admin" class="text-sm font-medium text-secondary">Admin</label>
             </div>
@@ -123,7 +131,7 @@ async function loadUsers() {
             <td class="border border-white/10 px-4 py-2 text-secondary text-xs">${escapeHtml(lastLogin)}</td>
             <td class="border border-white/10 px-4 py-2"><span class="px-2 py-0.5 rounded text-xs ${statusClass}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
             <td class="border border-white/10 px-4 py-2">
-                ${u.source === 'local' ? `<button type="button" class="edit-btn px-2 py-1 rounded text-xs font-medium bg-cyan-600/30 text-cyan-400 hover:bg-cyan-500/40 mr-1" data-id="${u.id}" data-username="${escapeHtml(u.username)}" data-display="${escapeHtml(u.display_name || u.username)}" data-admin="${u.is_admin}" data-avatar="${escapeHtml(u.avatar_url || '')}">Edit</button>` : ''}
+                ${u.source === 'local' ? `<button type="button" class="edit-btn px-2 py-1 rounded text-xs font-medium bg-cyan-600/30 text-cyan-400 hover:bg-cyan-500/40 mr-1" data-id="${u.id}" data-username="${escapeHtml(u.username)}" data-display="${escapeHtml(u.display_name || u.username)}" data-admin="${u.is_admin}" data-must-change="${u.must_change_password === true}" data-avatar="${escapeHtml(u.avatar_url || '')}">Edit</button>` : ''}
                 <button type="button" class="avatar-btn px-2 py-1 rounded text-xs font-medium bg-tertiary border border-white/10 hover:border-accent-green" data-id="${u.id}" data-username="${escapeHtml(u.username)}" data-avatar="${escapeHtml(u.avatar_url || '')}">Photo</button>
                 ${u.source !== 'system' ? `<button type="button" class="toggle-btn px-2 py-1 rounded text-xs font-medium bg-tertiary border border-white/10 hover:border-accent-green" data-id="${u.id}" data-active="${u.is_active}">${u.is_active ? 'Deactivate' : 'Activate'}</button>` : '<span class="text-xs text-orange-400 italic">managed by MISP</span>'}
             </td>
@@ -147,6 +155,7 @@ function openEditModal(d) {
     document.getElementById('edit_display_name').value = d.display || d.username;
     document.getElementById('edit_password').value = '';
     document.getElementById('edit_is_admin').checked = d.admin === 'true';
+    document.getElementById('edit_must_change_password').checked = d.mustChange === true || d.mustChange === 'true';
     document.getElementById('editModal').classList.remove('hidden');
     document.getElementById('editModal').style.display = 'flex';
 }
@@ -159,7 +168,8 @@ document.getElementById('editUserForm').addEventListener('submit', async (e) => 
     const id = document.getElementById('edit_user_id').value;
     const body = {
         display_name: document.getElementById('edit_display_name').value,
-        is_admin: document.getElementById('edit_is_admin').checked
+        is_admin: document.getElementById('edit_is_admin').checked,
+        must_change_password: document.getElementById('edit_must_change_password').checked
     };
     const pwd = document.getElementById('edit_password').value;
     if (pwd) body.password = pwd;
@@ -185,7 +195,8 @@ document.getElementById('createUserForm').addEventListener('submit', async (e) =
         username: document.getElementById('new_username').value.trim().toLowerCase(),
         password: document.getElementById('new_password').value,
         display_name: document.getElementById('new_display_name').value.trim() || document.getElementById('new_username').value.trim(),
-        is_admin: document.getElementById('new_is_admin').checked
+        is_admin: document.getElementById('new_is_admin').checked,
+        must_change_password: document.getElementById('new_must_change_password').checked
     };
     try {
         const res = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
