@@ -86,7 +86,7 @@ def _rules():
       'Contributions only on weekends. Consider adjusting task distribution for better weekday coverage')
     R('con_irregular_hours', 'Consistency', 'info',
       lambda s: s['ioc_count'] > 0 and s['night_pct'] > 80,
-      'Over 80% of submissions during late-night hours (22:00–04:00)',
+      'Over 80% of submissions during late-night hours (22:00-04:00)',
       'Late-night pattern detected - could indicate after-hours catch-up. Review daytime task allocation')
     R('con_long_gap', 'Consistency', 'warning',
       lambda s: s['max_gap_days'] >= 5,

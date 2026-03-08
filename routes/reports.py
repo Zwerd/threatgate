@@ -73,10 +73,10 @@ def _format_report_name(period, start_date, end_date):
     if period == 'day':
         return f"Daily Report - {start_date.strftime('%b %d, %Y')}"
     elif period == 'week':
-        return f"Weekly Report - {start_date.strftime('%b %d')} – {end_date.strftime('%b %d, %Y')}"
+        return f"Weekly Report - {start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
     elif period == 'month':
         return f"Monthly Report - {start_date.strftime('%B %Y')}"
-    return f"Report - {start_date.strftime('%b %d')} – {end_date.strftime('%b %d, %Y')}"
+    return f"Report - {start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
 
 
 def _count_in_range(model, date_col, start_dt, end_dt, extra_filter=None):
@@ -693,7 +693,7 @@ def _compute_available_periods(period_type=None, limit=30):
                 break
             end = d + timedelta(days=6)
             periods.append({
-                'label': f"{d.strftime('%b %d')} – {end.strftime('%b %d')}",
+                'label': f"{d.strftime('%b %d')} - {end.strftime('%b %d')}",
                 'date': d.isoformat(),
                 'period': 'week',
             })

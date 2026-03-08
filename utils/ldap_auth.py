@@ -152,6 +152,10 @@ def test_ldap_connection_steps(
     if not url_clean.startswith(("ldap://", "ldaps://")):
         add("LDAP URL", "fail", "URL must start with ldap:// or ldaps://")
         return steps
+    # Port 636 is for LDAPS; using ldap:// on 636 causes "Connection reset by peer"
+    if url_clean.startswith("ldap://") and ":636" in url_clean:
+        add("LDAP URL", "fail", "Port 636 requires ldaps:// (SSL), not ldap://. Use ldaps://your-server:636")
+        return steps
     add("LDAP URL", "ok", url_clean)
 
     # Step 3: Create server (DNS / connect)

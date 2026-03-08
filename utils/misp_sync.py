@@ -140,7 +140,7 @@ def fetch_attributes(
         return [], f"MISP API error: {response['errors']}"
 
     attrs = response if isinstance(response, list) else []
-    # Collect with timestamp for sorting – keep latest per (type, value)
+    # Collect with timestamp for sorting - keep latest per (type, value)
     with_ts = []
     for attr in attrs:
         misp_type = getattr(attr, 'type', '') if hasattr(attr, 'type') else (attr.get('type', '') if isinstance(attr, dict) else '')

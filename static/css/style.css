@@ -366,8 +366,24 @@ input:focus, select:focus, textarea:focus {
 .pulse-dot {
     animation: pulse 2s ease-in-out infinite;
 }
+
+/* Live Stats only: whole "🟢 Live Updating..." block pulses (CSS-only, no HTML change) */
+@keyframes live-block-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.5; }
+}
+#tab-live-stats #liveIndicator {
+    animation: live-block-pulse 2s ease-in-out infinite;
+    will-change: opacity;
+    transform: translateZ(0);
+}
+#tab-live-stats #liveIndicator .pulse-dot {
+    animation: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .pulse-dot { animation: none; }
+    #tab-live-stats #liveIndicator { animation: none; }
 }
 
 /* Neon Header Glow */
@@ -432,14 +448,14 @@ header.neon-header {
     font-weight: 700;
 }
 
-/* Submit IOCs: keep row labels (TTL, Campaign, Assign to user) fully visible – no clipping */
+/* Submit IOCs: keep row labels (TTL, Campaign, Assign to user) fully visible - no clipping */
 #bulk-wrapper-single .grid.items-start label {
     min-height: 1.25rem;
     overflow: visible;
     padding: 0;
 }
 
-/* Submit IOCs: select fields (TTL, Campaign, Assign to user) – default text must not be clipped */
+/* Submit IOCs: select fields (TTL, Campaign, Assign to user) - default text must not be clipped */
 #bulk-wrapper-single .submit-row-select {
     min-height: 2.25rem;
     height: auto;
@@ -578,6 +594,21 @@ header h1 {
     text-align: center;
 }
 
+/* Live Stats tab: slightly narrower so "Live Stats" wraps to two lines */
+.tab-button[data-tab="live-stats"] {
+    max-width: 4.25rem;
+}
+
+/* Feed Pulse tab: just enough so "Feed Pulse" wraps */
+.tab-button[data-tab="feed-pulse"] {
+    max-width: 5rem;
+}
+
+/* Submit IOCs tab: just enough so "Submit IOCs" wraps */
+.tab-button[data-tab="bulk-unified"] {
+    max-width: 5.5rem;
+}
+
 /* Prevent any overlapping text or visual artifacts */
 div:has(.tab-button) {
     position: relative;
@@ -649,6 +680,16 @@ nav:has(.tab-button) {
     gap: 0.6rem;
     justify-content: center;
     padding: 0.5rem 0;
+}
+
+.navbar-logo-link {
+    display: flex;
+    flex-shrink: 0;
+    text-decoration: none;
+    color: inherit;
+}
+.navbar-logo-link:hover {
+    opacity: 0.9;
 }
 
 /* Full-height tabs: MUST stretch - override any div:has(.tab-button) rules */

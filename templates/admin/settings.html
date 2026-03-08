@@ -292,6 +292,7 @@ document.getElementById('ldapTestBtn').addEventListener('click', async function(
         var res = await fetch('/api/admin/ldap/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 ldap_url: document.getElementById('ldap_url').value,
                 ldap_base_dn: document.getElementById('ldap_base_dn').value,
@@ -299,10 +300,28 @@ document.getElementById('ldapTestBtn').addEventListener('click', async function(
                 ldap_bind_password: document.getElementById('ldap_bind_password').value
             })
         });
-        var data = await res.json();
+        var text = await res.text();
+        var data = null;
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch (parseErr) {
+            spinnerEl.classList.add('hidden');
+            logEl.classList.remove('hidden');
+            var preview = (text || '').trim().substring(0, 400);
+            if (preview.length < (text || '').trim().length) preview += '...';
+            var escaped = preview.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            contentEl.innerHTML = '<div class="text-red-400 space-y-2">'
+                + '<div><strong>Server returned a non-JSON response (HTTP ' + res.status + ').</strong></div>'
+                + '<div>This usually means: (1) Session expired — log in again as admin, or (2) Server error — check <code class="bg-white/10 px-1 rounded">journalctl -u ziochub</code> for LDAP/ldap3 errors.</div>'
+                + '<div class="text-amber-300 text-xs mt-2">Response preview:</div>'
+                + '<pre class="bg-black/40 p-2 rounded break-all text-xs overflow-x-auto">' + escaped + '</pre></div>';
+            this.disabled = false;
+            return;
+        }
         spinnerEl.classList.add('hidden');
         logEl.classList.remove('hidden');
-        if (data.success && data.steps) {
+        /* Show step-by-step result whenever server sent steps (success or fail). When test fails, the real error is in the failed step's message. */
+        if (data && data.steps && data.steps.length) {
             var lines = [];
             data.steps.forEach(function(s) {
                 var icon = s.status === 'ok' ? '\u2713' : (s.status === 'fail' ? '\u2717' : '?');
@@ -314,7 +333,12 @@ document.getElementById('ldapTestBtn').addEventListener('click', async function(
                 return '<div class="' + l.color + '">[' + l.icon + '] ' + l.step + msg + '</div>';
             }).join('');
         } else {
-            contentEl.innerHTML = '<div class="text-red-400">Error: ' + (data.message || 'Unknown error') + '</div>';
+            var errMsg = (data && data.message) ? data.message : 'Unknown error';
+            var isAuth = (data && data.require_login) || res.status === 401;
+            contentEl.innerHTML = '<div class="text-red-400">'
+                + (isAuth ? '<div class="font-semibold">Session expired or not authorized.</div><div class="mt-1 text-amber-200">Please log in again as admin and try Test Connection again.</div>' : '')
+                + (!isAuth ? '<div class="font-semibold">Connection test failed</div><div class="mt-1 text-amber-200">Details from server:</div>' : '')
+                + '<div class="mt-1 font-mono text-sm break-words">' + errMsg.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div></div>';
         }
     } catch (err) {
         spinnerEl.classList.add('hidden');

@@ -1,4 +1,4 @@
-/* app.js – Core application bootstrap (extracted from inline <script>) */
+/* app.js - Core application bootstrap (extracted from inline <script>) */
 
 // ---------------------------------------------------------------------------
 // Global state
@@ -17,7 +17,7 @@ var statsPollInterval = null;
 var liveFeedInterval = null;
 
 // ---------------------------------------------------------------------------
-// Fetch wrapper – on 401, redirect to login (preserves next URL)
+// Fetch wrapper - on 401, redirect to login (preserves next URL)
 // ---------------------------------------------------------------------------
 const _originalFetch = window.fetch;
 window.fetch = async function (url, opts) {
@@ -33,7 +33,7 @@ window.fetch = async function (url, opts) {
 };
 
 // ---------------------------------------------------------------------------
-// i18n – load translations from JSON files
+// i18n - load translations from JSON files
 // ---------------------------------------------------------------------------
 const SUPPORTED_LANGUAGES = ['en', 'he'];
 
@@ -512,7 +512,7 @@ document.getElementById('badgeEarnedModal').addEventListener('click', function (
 });
 
 // ---------------------------------------------------------------------------
-// Smart paste – strip "ip: " prefixes
+// Smart paste - strip "ip: " prefixes
 // ---------------------------------------------------------------------------
 document.getElementById('iocValue').addEventListener('paste', function (e) {
     setTimeout(() => {
@@ -550,7 +550,7 @@ function getIocTypeIcon(iocType, iocValue, countryCode) {
 }
 
 // ---------------------------------------------------------------------------
-// Global exposure – accessible from other scripts and inline code
+// Global exposure - accessible from other scripts and inline code
 // ---------------------------------------------------------------------------
 window.t = t;
 window.showToast = showToast;

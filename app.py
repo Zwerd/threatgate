@@ -192,6 +192,18 @@ def _api_ok(data=None, message=None):
     return jsonify(body), 200
 
 
+@app.errorhandler(500)
+def _api_500_json(exc):
+    """Ensure /api/* always gets JSON on 500, so frontend never sees HTML (e.g. LDAP test)."""
+    if request.path.startswith('/api/'):
+        logging.exception('API 500: %s', exc)
+        return jsonify({'success': False, 'message': 'Internal server error. Check server logs.'}), 500
+    from flask import make_response
+    r = make_response('<h1>Internal Server Error</h1>', 500)
+    r.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return r
+
+
 def _commit_with_retry(max_attempts=3):
     """Commit the current session; retry on SQLite 'database is locked' (offline-safe)."""
     for attempt in range(max_attempts):
