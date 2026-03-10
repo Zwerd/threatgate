@@ -100,6 +100,15 @@ def login():
         local_user = User.query.filter_by(username=username, source='local', is_active=True).first()
         if local_user and verify_password(local_user.password_hash, password):
             user = local_user
+        # Fallback: user may have source='ldap' after a prior LDAP login; if they have a stored hash and it matches, allow local login
+        if user is None:
+            any_user = User.query.filter_by(username=username, is_active=True).first()
+            if any_user and any_user.password_hash and verify_password(any_user.password_hash, password):
+                user = any_user
+                if user.source != 'local':
+                    user.source = 'local'
+                    _commit_with_retry()
+                    logging.info('Login: user %s source reset to local (password matched)', username)
 
     # Phase 3: Try LDAP if enabled and (user not found yet) and auth_mode allows LDAP
     if user is None and ldap_enabled and auth_mode in ('ldap', 'ldap_with_local_fallback', 'local_with_ldap_fallback'):
@@ -156,6 +165,7 @@ def login():
             logging.warning('LDAP auth failed for %s, falling back to local', username)
 
     if user is None:
+        logging.warning('Login failed for username=%s (auth_mode=%s)', username, auth_mode)
         return render_template('login.html', error='Invalid username or password'), 401
 
     login_user(user)

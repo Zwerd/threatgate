@@ -118,7 +118,7 @@ def create_campaign():
 def link_ioc_to_campaign():
     """Link an existing IOC to a campaign by value. Expects {ioc_value, campaign_id}."""
     from utils.validation_messages import MSG_IOC_NOT_FOUND
-    _commit_with_retry, audit_log = _from_app('_commit_with_retry', 'audit_log')
+    _commit_with_retry, audit_log, _log_champs_event = _from_app('_commit_with_retry', 'audit_log', '_log_champs_event')
     try:
         data = request.get_json() or {}
         ioc_value = (data.get('ioc_value') or '').strip()
@@ -133,9 +133,25 @@ def link_ioc_to_campaign():
         ioc = IOC.query.filter(IOC.value == ioc_value).first()
         if not ioc:
             return jsonify({'success': False, 'message': MSG_IOC_NOT_FOUND}), 404
+        had_campaign = bool(ioc.campaign_id)
         ioc.campaign_id = campaign_id
         _commit_with_retry()
         audit_log('IOC_CAMPAIGN_LINK', f'ioc_value={ioc_value[:80]} campaign={campaign.name} type={ioc.type}')
+        # Champs Smart Effort: reward first-time campaign linking as a separate effort event
+        try:
+            _log_champs_event(
+                'ioc_campaign_link',
+                user_id=current_user.id if current_user and current_user.is_authenticated else None,
+                payload={
+                    'ioc_id': ioc.id,
+                    'value': ioc_value[:100],
+                    'type': ioc.type,
+                    'campaign_id': campaign_id,
+                    'had_campaign': had_campaign,
+                },
+            )
+        except Exception:
+            pass
         return jsonify({
             'success': True,
             'message': f'IOC linked to campaign "{campaign.name}"',

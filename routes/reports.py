@@ -18,10 +18,29 @@ from models import (
     SanityExclusion, ActivityEvent, ChampRankSnapshot, TeamGoal,
 )
 from utils.decorators import login_required
+from utils.cache import get_cached, set_cached
 
 log = logging.getLogger(__name__)
 
+REPORTS_CACHE_TTL = 120  # seconds
+
 reports_bp = Blueprint('reports_bp', __name__)
+
+
+def _from_app(*names):
+    import app as _app
+    return tuple(getattr(_app, n) for n in names)
+
+
+def _reports_excluded_usernames():
+    """Exclude MISP sync user from Analyst Spotlight when admin chose 'Exclude from Champs'."""
+    _get_setting, = _from_app('_get_setting')
+    excluded = set()
+    if _get_setting('misp_exclude_from_champs', 'true').lower() == 'true':
+        sync_user = (_get_setting('misp_sync_user', 'misp_sync') or 'misp_sync').strip()
+        if sync_user:
+            excluded.add(sync_user.lower())
+    return excluded or None
 
 
 # ---------------------------------------------------------------------------
@@ -89,11 +108,40 @@ def _count_in_range(model, date_col, start_dt, end_dt, extra_filter=None):
 # ---------------------------------------------------------------------------
 # /api/reports/data
 # ---------------------------------------------------------------------------
+def _report_start_date(period, date_str):
+    """Compute start_date from period and optional date_str. Returns (start_date, None) or (None, error_response)."""
+    if not date_str:
+        if period == 'week':
+            today = date.today()
+            return (today - timedelta(days=today.weekday()), None)
+        if period == 'month':
+            return (date.today().replace(day=1), None)
+        return (date.today(), None)
+    start_date = _parse_date(date_str)
+    if not start_date:
+        return (None, (jsonify({'success': False, 'message': 'Invalid date format'}), 400))
+    return (start_date, None)
+
+
 @reports_bp.route('/api/reports/data', methods=['GET'])
 @login_required
 def get_report_data():
     try:
-        return _get_report_data_impl()
+        period = request.args.get('period', 'week')
+        date_str = request.args.get('date')
+        start_date, parse_err = _report_start_date(period, date_str)
+        if parse_err is not None:
+            return parse_err[0], parse_err[1]
+        role = 'admin' if current_user.is_admin else 'user'
+        cache_key = f'reports_data_{period}_{start_date.isoformat()}_{role}'
+        cached = get_cached(cache_key)
+        if cached is not None:
+            return jsonify(cached)
+        data, err = _get_report_data_impl()
+        if err is not None:
+            return err[0], err[1]
+        set_cached(cache_key, data, ttl_seconds=REPORTS_CACHE_TTL)
+        return jsonify(data)
     except Exception as e:
         log.exception('Reports API error')
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -114,7 +162,7 @@ def _get_report_data_impl():
     else:
         start_date = _parse_date(date_str)
         if not start_date:
-            return jsonify({'success': False, 'message': 'Invalid date format'}), 400
+            return (None, (jsonify({'success': False, 'message': 'Invalid date format'}), 400))
 
     start_dt, end_dt = _period_range(period, start_date)
     prev_start_dt, prev_end_dt = _prev_period_range(period, start_date)
@@ -158,7 +206,7 @@ def _get_report_data_impl():
     active_iocs_rows = IOC.query.filter(
         IOC.created_at <= end_dt,
         active_at_end,
-    ).limit(3000).all()
+    ).order_by(IOC.created_at.desc()).limit(3000).all()
     active_iocs_list = [{'value': r.value or '', 'type': r.type or ''} for r in active_iocs_rows]
     anomalies_all = get_feed_pulse_anomalies(active_iocs_list)
     anomaly_ioc_values = set()
@@ -425,7 +473,7 @@ def _get_report_data_impl():
     # ── Available periods ─────────────────────────────────────────
     available_periods = _compute_available_periods()
 
-    return jsonify({
+    data = {
         'success': True,
         'period': period,
         'start_date': start_date.isoformat(),
@@ -466,7 +514,8 @@ def _get_report_data_impl():
             'mentorship_insights': mentorship_insights,
         },
         'available_periods': available_periods,
-    })
+    }
+    return (data, None)
 
 
 # ---------------------------------------------------------------------------
@@ -567,13 +616,22 @@ def _build_campaigns_created_section(start_dt, end_dt):
 
 
 def _build_analysts_section(start_dt, end_dt, prev_start_dt, prev_end_dt):
-    """Build the analysts section: podium, leaderboard, team goal."""
+    """Build the analysts section: podium, leaderboard, team goal. Respects 'Exclude from Champs' for MISP sync."""
     from utils.champs import compute_analyst_scores, _get_level_and_xp, _get_nickname, _get_badges
+
+    _get_setting, = _from_app('_get_setting')
+    scoring_method = _get_setting('champs_scoring_method', '1')
+    exclude_usernames = _reports_excluded_usernames()
 
     users_map = {u.id: u for u in User.query.filter_by(is_active=True).all()}
     profiles = {p.user_id: p for p in UserProfile.query.all()}
 
-    scores = compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent, start_dt=start_dt, end_dt=end_dt)
+    scores = compute_analyst_scores(
+        db, IOC, YaraRule, User, ActivityEvent,
+        start_dt=start_dt, end_dt=end_dt,
+        scoring_method=scoring_method,
+        exclude_usernames=exclude_usernames,
+    )
 
     # Podium - top 3
     podium = []

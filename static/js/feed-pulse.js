@@ -39,12 +39,14 @@
             const outEmpty = document.getElementById('feedPulseOutgoingEmpty');
             const incBody = document.getElementById('feedPulseIncomingBody');
             const incEmpty = document.getElementById('feedPulseIncomingEmpty');
+            const isAdmin = window.authState && window.authState.is_admin;
+            const allowTitle = (typeof t === 'function' && t('feedpulse.excluded_count')) || 'Allowlisted';
             if (outBody) {
                 outBody.innerHTML = out.map(o => `
                     <tr class="border-b border-white/5 hover:bg-red-900/10">
                         <td class="px-2 py-1.5 text-xs font-mono truncate max-w-[200px]" title="${escapeHtml(o.value)}">
                             <span>${escapeHtml(o.value)}</span>
-                            ${o.is_allowlisted ? `<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-500/20 text-slate-200 border border-slate-400/30" title="${escapeAttr(o.allowlist_reason || 'Allowlisted')}">ALLOWLIST</span>` : ''}
+                            ${o.is_allowlisted ? `<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-500/20 text-slate-200 border border-slate-400/30" title="${escapeAttr(isAdmin ? (o.allowlist_reason || allowTitle) : allowTitle)}">ALLOWLIST</span>` : ''}
                         </td>
                         <td class="px-2 py-1.5 text-xs">${escapeHtml(o.type)}</td>
                         <td class="px-2 py-1.5 text-xs">${escapeHtml(o.analyst)}</td>
@@ -60,7 +62,7 @@
                     <tr class="border-b border-white/5 hover:bg-green-900/10">
                         <td class="px-2 py-1.5 text-xs font-mono truncate max-w-[200px]" title="${escapeHtml(i.value)}">
                             <span>${escapeHtml(i.value)}</span>
-                            ${i.is_allowlisted ? `<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-500/20 text-slate-200 border border-slate-400/30" title="${escapeAttr(i.allowlist_reason || 'Allowlisted')}">ALLOWLIST</span>` : ''}
+                            ${i.is_allowlisted ? `<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-500/20 text-slate-200 border border-slate-400/30" title="${escapeAttr(isAdmin ? (i.allowlist_reason || allowTitle) : allowTitle)}">ALLOWLIST</span>` : ''}
                         </td>
                         <td class="px-2 py-1.5 text-xs">${escapeHtml(i.type)}</td>
                         <td class="px-2 py-1.5 text-xs">${escapeHtml(i.analyst)}</td>
@@ -98,7 +100,7 @@
                         const attrAnomaly = (a.type || '').replace(/"/g,'&quot;');
                         const valBlock = a.value ? `<code class="anomaly-copy-value block mt-1 p-2 bg-black/30 rounded text-xs font-mono break-all cursor-pointer" data-value="${attrVal}" title="${(t('toast.click_to_copy') || 'Click to copy').replace(/"/g,'&quot;')}">${escapeHtml(a.value)}</code>` : '';
                         const excludeBtn = `<button type="button" class="anomaly-exclude-btn btn-cmd-neutral btn-cmd-sm mt-1 text-xs" data-value="${attrVal}" data-type="${attrType}" data-anomaly-type="${attrAnomaly}" title="${(t('feedpulse.exclude_anomaly') || 'Exclude from future scans').replace(/"/g,'&quot;')}">${t('feedpulse.exclude') || 'Exclude'}</button>`;
-                        const allowBadge = a.is_allowlisted ? `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-500/20 text-slate-100 border border-slate-400/30" title="${escapeAttr(a.allowlist_reason || 'Allowlisted')}">ALLOWLIST</span>` : '';
+                        const allowBadge = a.is_allowlisted ? `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-500/20 text-slate-100 border border-slate-400/30" title="${escapeAttr(isAdmin ? (a.allowlist_reason || allowTitle) : allowTitle)}">ALLOWLIST</span>` : '';
                         return `<li class="flex items-start gap-2 flex-col border-b border-amber-500/20 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0"><span class="flex gap-2 items-start"><span class="text-amber-400 flex-shrink-0">•</span><span class="flex-1">${escapeHtml(a.message)}${allowBadge}</span></span>${valBlock}${excludeBtn}</li>`;
                     }).join('');
                 } else {
@@ -113,6 +115,35 @@
     }
 
     document.getElementById('feedPulseRefreshBtn')?.addEventListener('click', loadFeedPulse);
+
+    // Allowlist popup: show read-only content (admin edits in Admin → Allowlist)
+    const allowlistBtn = document.getElementById('feedPulseAllowlistBtn');
+    const allowlistModal = document.getElementById('feedPulseAllowlistModal');
+    const allowlistContent = document.getElementById('feedPulseAllowlistContent');
+    const allowlistClose = document.getElementById('feedPulseAllowlistModalClose');
+    if (allowlistBtn && allowlistModal && allowlistContent) {
+        allowlistBtn.addEventListener('click', async function () {
+            allowlistModal.classList.remove('hidden');
+            allowlistContent.textContent = (typeof t === 'function' && t('feedpulse.loading') ? t('feedpulse.loading') : '') || 'Loading...';
+            try {
+                const res = await fetch('/api/allowlist-view');
+                const data = await res.json().catch(function () { return {}; });
+                if (data.success) {
+                    allowlistContent.textContent = (data.content || '').trim() || ((typeof t === 'function' && t('feedpulse.allowlist_empty')) ? t('feedpulse.allowlist_empty') : '(Empty)');
+                } else {
+                    allowlistContent.textContent = data.message || 'Failed to load allowlist';
+                }
+            } catch (err) {
+                allowlistContent.textContent = (err && err.message) || 'Error loading allowlist';
+            }
+        });
+        if (allowlistClose) {
+            allowlistClose.addEventListener('click', function () { allowlistModal.classList.add('hidden'); });
+        }
+        allowlistModal.addEventListener('click', function (e) {
+            if (e.target === allowlistModal) allowlistModal.classList.add('hidden');
+        });
+    }
     document.getElementById('feedPulseAnomaliesList')?.addEventListener('click', async (e) => {
         const copyTarget = e.target.closest('.anomaly-copy-value');
         if (copyTarget) {

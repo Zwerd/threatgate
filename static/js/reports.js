@@ -29,7 +29,7 @@
     // ── Load reports list into sidebar ───────────────────────────
     function loadReportsList(period) {
         var container = document.getElementById('reportsList');
-        container.innerHTML = '<div class="text-xs text-secondary text-center py-4">Loading...</div>';
+        container.innerHTML = '<div class="flex flex-col items-center justify-center py-8 gap-2"><div class="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div><span class="text-xs text-secondary">Loading...</span></div>';
 
         fetch('/api/reports/periods?period=' + encodeURIComponent(period))
             .then(function (r) { return r.json(); })
@@ -79,8 +79,8 @@
         if (!loadingEl) {
             loadingEl = document.createElement('div');
             loadingEl.id = 'reportLoading';
-            loadingEl.className = 'flex justify-center py-20';
-            loadingEl.innerHTML = '<div class="text-secondary">Loading report data...</div>';
+            loadingEl.className = 'flex flex-col items-center justify-center py-20 gap-3';
+            loadingEl.innerHTML = '<div class="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin"></div><span class="text-secondary">Loading report data...</span>';
             content.parentNode.insertBefore(loadingEl, content);
         }
         loadingEl.classList.remove('hidden');

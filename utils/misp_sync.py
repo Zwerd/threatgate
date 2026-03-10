@@ -78,6 +78,35 @@ def test_connection(url: str, api_key: str, verify_ssl: bool = False) -> tuple[b
         return False, _connection_error_message(e, url)
 
 
+def test_connection_steps(url: str, api_key: str, verify_ssl: bool = False) -> list[dict]:
+    """Test MISP connectivity step-by-step for Admin UI live log. Returns list of {step, status, message}."""
+    steps = []
+    if not PYMISP_AVAILABLE:
+        steps.append({'step': 'Check pymisp', 'status': 'fail', 'message': 'pymisp is not installed (pip install pymisp)'})
+        return steps
+    steps.append({'step': 'Check pymisp', 'status': 'ok', 'message': 'pymisp available'})
+
+    if not (url or '').strip():
+        steps.append({'step': 'Check URL', 'status': 'fail', 'message': 'MISP URL is required'})
+        return steps
+    if not (api_key or '').strip():
+        steps.append({'step': 'Check API key', 'status': 'fail', 'message': 'MISP API key is required'})
+        return steps
+    steps.append({'step': 'Check URL and API key', 'status': 'ok', 'message': f'URL: {url.strip()[:60]}...' if len((url or "").strip()) > 60 else f'URL: {(url or "").strip()}'})
+
+    try:
+        misp = PyMISP((url or '').rstrip('/'), api_key, ssl=verify_ssl, timeout=15)
+        steps.append({'step': 'Connect to MISP', 'status': 'ok', 'message': 'TCP/SSL connection established'})
+        ver = misp.misp_instance_version
+        if ver and isinstance(ver, dict) and 'version' in ver:
+            steps.append({'step': 'Get MISP version', 'status': 'ok', 'message': f"MISP v{ver['version']}"})
+        else:
+            steps.append({'step': 'Get MISP version', 'status': 'ok', 'message': 'Connected (version not available)'})
+    except Exception as e:
+        steps.append({'step': 'Connect to MISP', 'status': 'fail', 'message': _connection_error_message(e, url or '')})
+    return steps
+
+
 def _clean_ip_port(value: str) -> str:
     """Extract IP from 'ip|port' composite attributes."""
     if '|' in value:
@@ -219,6 +248,8 @@ def sync_to_db(
     added = 0
     skipped = 0
     errors = 0
+    added_samples: list[dict] = []  # for Admin UI: show new IOCs on screen (type + value), max 100
+    invalid_samples: list[dict] = []  # for Admin UI: show why some were skipped (type + value), max 30
 
     exp_date = None
     if default_ttl_days and default_ttl_days > 0:
@@ -235,6 +266,8 @@ def sync_to_db(
         if not validate_ioc(value, tg_type):
             _log.debug('MISP sync skipping invalid %s value: %s', tg_type, value[:80])
             invalid += 1
+            if len(invalid_samples) < 30:
+                invalid_samples.append({'type': tg_type, 'value': value[:120]})
             continue
 
         existing = IOC.query.filter(
@@ -271,6 +304,8 @@ def sync_to_db(
                 payload=json.dumps({'source': 'misp', 'misp_event': event_id}),
             ))
             added += 1
+            if len(added_samples) < 100:
+                added_samples.append({'type': tg_type, 'value': value})
         except Exception as e:
             _log.warning('MISP sync insert error for %s: %s', value[:80], e)
             errors += 1
@@ -281,9 +316,9 @@ def sync_to_db(
         except Exception as e:
             db.session.rollback()
             _log.exception('MISP sync commit failed: %s', e)
-            return {'added': 0, 'skipped': skipped, 'errors': added + errors, 'error': str(e)}
+            return {'added': 0, 'skipped': skipped, 'errors': added + errors, 'error': str(e), 'added_samples': [], 'invalid_samples': []}
 
-    return {'added': added, 'skipped': skipped, 'errors': errors, 'invalid': invalid}
+    return {'added': added, 'skipped': skipped, 'errors': errors, 'invalid': invalid, 'added_samples': added_samples, 'invalid_samples': invalid_samples}
 
 
 def ensure_misp_user(username: str = 'misp_sync') -> tuple[int, str]:
@@ -351,24 +386,33 @@ def _release_lock():
         db.session.commit()
 
 
-def run_sync(settings: dict) -> dict:
+def run_sync(settings: dict, log_lines: list | None = None) -> dict:
     """
     Full sync pipeline: fetch from MISP -> insert into ZIoCHub.
     `settings` can be raw (from DB); they are normalized via misp_settings.
     Must be called within Flask app context.
     Uses a DB-based lock to prevent concurrent syncs.
+    If log_lines is provided, appends step-by-step messages for Admin UI live log.
     Returns summary dict.
     """
+    def log(step: str, status: str, message: str = '') -> None:
+        if log_lines is not None:
+            log_lines.append({'step': step, 'status': status, 'message': message})
+
     from misp_settings import normalize_sync_settings
     settings = normalize_sync_settings(settings)
 
     if not _acquire_lock():
+        log('Acquire lock', 'fail', 'Another sync is already running. Try again later.')
         return {'success': False, 'error': 'Another sync is already running. Try again later.'}
+    log('Acquire lock', 'ok', 'Sync lock acquired')
     try:
         url = (settings.get('misp_url') or '').strip()
         api_key = (settings.get('misp_api_key') or '').strip()
         if not url or not api_key:
+            log('Check config', 'fail', 'MISP URL and API key not configured')
             return {'success': False, 'error': 'MISP URL and API key not configured'}
+        log('Check config', 'ok', 'URL and API key set')
 
         verify_ssl = (settings.get('misp_verify_ssl') or 'false').lower() == 'true'
         try:
@@ -389,7 +433,9 @@ def run_sync(settings: dict) -> dict:
 
         sync_user = (settings.get('misp_sync_user') or 'misp_sync').strip()
         user_id, username = ensure_misp_user(sync_user)
+        log('Ensure MISP user', 'ok', f'User: {username} (id={user_id})')
 
+        log('Fetch attributes from MISP', 'ok', 'Requesting attributes...')
         attrs, err = fetch_attributes(
             url=url,
             api_key=api_key,
@@ -400,11 +446,15 @@ def run_sync(settings: dict) -> dict:
             published_only=published_only,
         )
         if err:
+            log('Fetch attributes from MISP', 'fail', err)
             return {'success': False, 'error': err, 'fetched': 0}
+        log('Fetch attributes from MISP', 'ok', f'Fetched {len(attrs)} attributes')
 
+        log('Insert into ZIoCHub', 'ok', 'Writing to database...')
         result = sync_to_db(attrs, user_id, username, default_ttl)
         result['success'] = True
         result['fetched'] = len(attrs)
+        log('Insert into ZIoCHub', 'ok', f"Added: {result.get('added', 0)}, skipped: {result.get('skipped', 0)}, errors: {result.get('errors', 0)}")
         return result
     finally:
         _release_lock()

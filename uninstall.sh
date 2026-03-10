@@ -52,7 +52,7 @@ show_help() {
     echo "    - Any systemd override directories (*.service.d/)"
     echo ""
     echo "  Application directory (/opt/ziochub):"
-    echo "    - Python source code (app.py, utils/, routes/, templates/, static/)"
+    echo "    - Python source code (app.py, utils/, routes/, scripts/, templates/, static/)"
     echo "    - Virtual environment (venv/)"
     echo "    - SQLite database (data/ziochub.db)"
     echo "    - IOC files (data/Main/)"

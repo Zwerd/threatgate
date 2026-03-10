@@ -16,6 +16,8 @@ DATA_DIR = os.environ.get("ZIOCHUB_DATA_DIR", "").strip() or None
 AUTH_MODE = os.environ.get("AUTH_MODE", "").strip() or None
 
 # Dev mode (Phase 6.2): when 1 or true, enables dev auto-login and LDAP mock.
+# Security: Do not enable in production. App logs a startup warning when DEV_MODE is True,
+# and an error when DEV_MODE is True and FLASK_ENV or ZIOCHUB_ENV is set to "production".
 DEV_MODE = os.environ.get("DEV_MODE", "").strip().lower() in ("1", "true", "yes")
 
 # Flask secret key. In production, set SECRET_KEY explicitly.

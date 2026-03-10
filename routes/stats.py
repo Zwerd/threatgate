@@ -29,6 +29,27 @@ def _from_app(*names):
 
 
 # ---------------------------------------------------------------------------
+# /api/allowlist-view (read-only for any logged-in user; Feed Pulse popup)
+# ---------------------------------------------------------------------------
+@stats_bp.route('/api/allowlist-view', methods=['GET'])
+@login_required
+def allowlist_view():
+    """Return raw allowlist file content for display in Feed Pulse popup (read-only)."""
+    ALLOWLIST_FILE, = _from_app('ALLOWLIST_FILE')
+    try:
+        raw = ''
+        try:
+            with open(ALLOWLIST_FILE, 'r', encoding='utf-8', errors='replace') as f:
+                raw = f.read()
+        except OSError:
+            raw = ''
+        return jsonify({'success': True, 'content': raw})
+    except Exception as e:
+        log.exception('allowlist_view failed')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
 # /api/stats/counts
 # ---------------------------------------------------------------------------
 @stats_bp.route('/api/stats/counts', methods=['GET'])

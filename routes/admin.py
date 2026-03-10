@@ -16,6 +16,7 @@ from models import User, UserProfile, SystemSetting
 from utils.auth import hash_password
 from utils.decorators import admin_required, admin_required_page
 from utils.allowlist import clear_allowlist_cache
+from routes.auth import _save_avatar, AVATARS_DIR, ALLOWED_AVATAR_EXT
 
 
 # --- Admin API blueprint ---
@@ -351,31 +352,36 @@ def create_user():
 @bp.route('/users/<int:user_id>', methods=['PUT'])
 @admin_required
 def update_user(user_id):
-    """Update a local user (admin only)."""
+    """Update a user (admin only). Local: full edit. LDAP: is_admin and display_name only."""
     _api_error, _commit_with_retry, audit_log = _from_app('_api_error', '_commit_with_retry', 'audit_log')
     try:
         user = db.session.get(User, user_id)
         if not user:
             return jsonify({'success': False, 'message': 'User not found'}), 404
-        if user.source != 'local':
-            return jsonify({'success': False, 'message': 'Only local users can be edited'}), 400
+        if user.source == 'system':
+            return jsonify({'success': False, 'message': 'System users (e.g. MISP sync) cannot be edited'}), 400
         data = request.get_json() or {}
-        display_name = (data.get('display_name') or '').strip()
+        is_ldap = user.source == 'ldap'
+
         if 'display_name' in data:
             profile = UserProfile.query.filter_by(user_id=user.id).first()
+            display_name = (data.get('display_name') or '').strip()
             if profile:
                 profile.display_name = display_name or user.username
             else:
                 db.session.add(UserProfile(user_id=user.id, display_name=display_name or user.username))
         if 'is_admin' in data:
             user.is_admin = bool(data['is_admin'])
-        if 'password' in data and data['password']:
-            pwd = str(data['password'])
-            if len(pwd) < 4:
-                return jsonify({'success': False, 'message': 'Password must be at least 4 characters'}), 400
-            user.password_hash = hash_password(pwd)
-        if 'must_change_password' in data:
-            user.must_change_password = bool(data['must_change_password'])
+
+        if not is_ldap:
+            if 'password' in data and data['password']:
+                pwd = str(data['password'])
+                if len(pwd) < 4:
+                    return jsonify({'success': False, 'message': 'Password must be at least 4 characters'}), 400
+                user.password_hash = hash_password(pwd)
+            if 'must_change_password' in data:
+                user.must_change_password = bool(data['must_change_password'])
+
         _commit_with_retry()
         audit_log('admin_user_update', f'user_id={user_id} by={current_user.username}')
         return jsonify({'success': True, 'message': f'User {user.username} updated'})
@@ -388,10 +394,9 @@ def update_user(user_id):
 @admin_required
 def user_avatar_upload(user_id):
     """Upload profile picture for a user (admin only)."""
-    _api_ok, _api_error, _save_avatar, _commit_with_retry, audit_log = _from_app(
-        '_api_ok', '_api_error', '_save_avatar', '_commit_with_retry', 'audit_log'
+    _api_ok, _api_error, _commit_with_retry, audit_log = _from_app(
+        '_api_ok', '_api_error', '_commit_with_retry', 'audit_log'
     )
-    AVATARS_DIR, ALLOWED_AVATAR_EXT = _from_app('AVATARS_DIR', 'ALLOWED_AVATAR_EXT')
     try:
         user = db.session.get(User, user_id)
         if not user:
@@ -535,7 +540,7 @@ def allowlist_reload():
 @bp.route('/misp/test', methods=['POST'])
 @admin_required
 def misp_test():
-    """Test MISP connectivity using configured or provided credentials."""
+    """Test MISP connectivity step-by-step; return steps for Admin UI live log."""
     _api_ok, _api_error, _get_setting = _from_app('_api_ok', '_api_error', '_get_setting')
     try:
         data = request.get_json() or {}
@@ -543,11 +548,10 @@ def misp_test():
         api_key = (data.get('misp_api_key') or _get_setting('misp_api_key', '')).strip()
         verify_ssl = (data.get('misp_verify_ssl') or _get_setting('misp_verify_ssl', 'false')).lower() == 'true'
 
-        from utils.misp_sync import test_connection
-        ok, msg = test_connection(url, api_key, verify_ssl)
-        if ok:
-            return _api_ok(message=msg)
-        return jsonify({'success': False, 'message': msg}), 400
+        from utils.misp_sync import test_connection_steps
+        steps = test_connection_steps(url, api_key, verify_ssl)
+        success = all(s.get('status') == 'ok' for s in steps)
+        return _api_ok(data={'success': success, 'steps': steps})
     except Exception as e:
         logging.exception('admin misp_test failed')
         return _api_error(str(e), 500)
@@ -569,7 +573,8 @@ def misp_sync_now():
         settings = {key: _get_setting(key, '') for key in sync_keys}
 
         from utils.misp_sync import run_sync
-        result = run_sync(settings)
+        log_lines = []
+        result = run_sync(settings, log_lines=log_lines)
 
         import json
         from datetime import datetime, timezone
@@ -582,8 +587,11 @@ def misp_sync_now():
         if result.get('success'):
             inv = result.get('invalid', 0)
             inv_msg = f", {inv} invalid" if inv else ''
-            return _api_ok(message=f"Sync complete: {result.get('added', 0)} added, {result.get('skipped', 0)} duplicates skipped{inv_msg}", data=result)
-        return jsonify({'success': False, 'message': result.get('error', 'Sync failed'), 'data': result}), 400
+            return _api_ok(
+                message=f"Sync complete: {result.get('added', 0)} added, {result.get('skipped', 0)} duplicates skipped{inv_msg}",
+                data={**result, 'steps': log_lines}
+            )
+        return jsonify({'success': False, 'message': result.get('error', 'Sync failed'), 'data': {**result, 'steps': log_lines}}), 400
     except Exception as e:
         logging.exception('admin misp_sync_now failed')
         return _api_error(str(e), 500)

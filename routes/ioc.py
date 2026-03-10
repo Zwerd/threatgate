@@ -427,10 +427,13 @@ def submit_ioc():
         except (ValueError, OSError) as e:
             db.session.rollback()
             return _api_error(f'Database error: {str(e)}', 500)
-        payload_hist = {}
+        payload_hist = {
+            'entered_by': current_user.username or '',
+            'assigned_to': username,
+        }
         if exp_date:
             payload_hist['expiration_date'] = exp_date.isoformat()
-        _log_ioc_history(ioc_type, value, 'created', username, payload_hist if payload_hist else None)
+        _log_ioc_history(ioc_type, value, 'created', username, payload_hist)
         _commit_with_retry()
         cmt = (comment or '').strip() if comment else ''
         comment_preview = (cmt[:80] + '...') if len(cmt) > 80 else cmt
@@ -521,10 +524,14 @@ def ingest_ioc():
                 expiration_date=exp_dt, user_id=user_id_ingest, rare=rare,
             ))
             _commit_with_retry()
-            payload_hist = {}
+            entered_by = current_user.username if (current_user and current_user.is_authenticated) else 'API'
+            payload_hist = {
+                'entered_by': entered_by,
+                'assigned_to': username,
+            }
             if exp_dt:
                 payload_hist['expiration_date'] = exp_dt.isoformat()
-            _log_ioc_history(ioc_type, value, 'created', username, payload_hist if payload_hist else None)
+            _log_ioc_history(ioc_type, value, 'created', username, payload_hist)
             _commit_with_retry()
             cmt = (comment or '').strip()[:80]
             audit_log('IOC_INGEST', f'type={ioc_type} value={value[:80]} comment="{cmt}" analyst={username}')
@@ -569,6 +576,9 @@ def bulk_csv():
         username = current_user.username.lower()
         ttl = request.form.get('ttl', 'Permanent')
         campaign_name = (request.form.get('campaign_name') or '').strip() or None
+        tags_raw = request.form.get('tags') or request.form.get('tags_for_all') or ''
+        tags_list = [t.strip() for t in tags_raw.split(',') if t.strip()][:50]
+        tags_json = json.dumps(tags_list) if tags_list else '[]'
         campaign_id = None
         if campaign_name:
             c = Campaign.query.filter_by(name=campaign_name).first()
@@ -661,6 +671,8 @@ def bulk_csv():
                     existing.ticket_id = ticket_id_val or existing.ticket_id
                     if campaign_id is not None:
                         existing.campaign_id = campaign_id
+                    if tags_list:
+                        existing.tags = tags_json
                     updated_count += 1
                 else:
                     rare = _compute_rare_find_fields(ioc_type, value)
@@ -670,11 +682,15 @@ def bulk_csv():
                         expiration_date=exp_date, campaign_id=campaign_id,
                         user_id=current_user.id if current_user.is_authenticated else None,
                         rare=rare,
+                        tags=tags_json,
                     ))
-                    payload_hist = {}
+                    payload_hist = {
+                        'entered_by': current_user.username or '',
+                        'assigned_to': username,
+                    }
                     if exp_date:
                         payload_hist['expiration_date'] = exp_date.isoformat()
-                    _log_ioc_history(ioc_type, value, 'created', username, payload_hist if payload_hist else None)
+                    _log_ioc_history(ioc_type, value, 'created', username, payload_hist)
                     new_count += 1
             try:
                 _commit_with_retry()
@@ -1077,6 +1093,13 @@ def preview_single():
         ticket_id = (data.get('ticket_id') or '').strip() or _auto_ticket_id(current_user.id)
         ttl = (data.get('ttl') or 'Permanent').strip()
         comment = sanitize_comment((data.get('comment') or '').strip() or '') or ''
+        tags_raw = data.get('tags')
+        if isinstance(tags_raw, list):
+            tags_list = [str(t).strip() for t in tags_raw if str(t).strip()][:50]
+        elif isinstance(tags_raw, str):
+            tags_list = [t.strip() for t in tags_raw.split(',') if t.strip()][:50]
+        else:
+            tags_list = []
         if ttl == 'Permanent':
             expiration_display = 'Permanent'
         else:
@@ -1106,6 +1129,8 @@ def preview_single():
             'existing_analyst': existing_analyst,
             'existing_comment': existing_comment
         }
+        if tags_list:
+            item['tags'] = tags_list
         return jsonify({'success': True, 'item': item})
     except Exception as e:
         logging.exception('preview_single failed')
@@ -1137,6 +1162,14 @@ def submit_staging():
         ttl = (data.get('ttl') or 'Permanent').strip()
         campaign_name = (data.get('campaign_name') or '').strip() or None
         submission_source = (data.get('source') or 'single').strip()
+        tags_for_all_raw = data.get('tags') or data.get('tags_for_all')
+        if isinstance(tags_for_all_raw, list):
+            tags_for_all_list = [str(t).strip() for t in tags_for_all_raw if str(t).strip()][:50]
+        elif isinstance(tags_for_all_raw, str):
+            tags_for_all_list = [t.strip() for t in tags_for_all_raw.split(',') if t.strip()][:50]
+        else:
+            tags_for_all_list = []
+        tags_json = json.dumps(tags_for_all_list) if tags_for_all_list else '[]'
         campaign_id = None
         if campaign_name:
             c = Campaign.query.filter_by(name=campaign_name).first()
@@ -1175,6 +1208,15 @@ def submit_staging():
             comment = sanitize_comment(raw.get('comment') or '') or None
             date_str = (raw.get('date') or '').strip()
             created_at = _parse_date_from_staging(date_str) or datetime.now()
+            # Per-item tags override "tags for all"
+            item_tags_raw = raw.get('tags')
+            if isinstance(item_tags_raw, list) and item_tags_raw:
+                item_tags_list = [str(t).strip() for t in item_tags_raw if str(t).strip()][:50]
+            elif isinstance(item_tags_raw, str) and item_tags_raw.strip():
+                item_tags_list = [t.strip() for t in item_tags_raw.split(',') if t.strip()][:50]
+            else:
+                item_tags_list = tags_for_all_list
+            item_tags_json = json.dumps(item_tags_list) if item_tags_list else '[]'
 
             exp_str = (raw.get('expiration') or '').strip()
             if exp_str.upper() in ('PERMANENT', 'NEVER'):
@@ -1196,6 +1238,8 @@ def submit_staging():
                 existing.user_id = user_id
                 if campaign_id is not None:
                     existing.campaign_id = campaign_id
+                if item_tags_list:
+                    existing.tags = item_tags_json
                 total_updated += 1
                 summary[ioc_type] = summary.get(ioc_type, {'updated': 0, 'new': 0})
                 summary[ioc_type]['updated'] += 1
@@ -1206,11 +1250,15 @@ def submit_staging():
                     ticket_id=ticket_id, comment=comment,
                     expiration_date=exp_date, created_at=created_at,
                     campaign_id=campaign_id, user_id=user_id, rare=rare,
+                    tags=item_tags_json,
                 ))
-                payload_hist = {}
+                payload_hist = {
+                    'entered_by': current_user.username or '',
+                    'assigned_to': analyst,
+                }
                 if exp_date:
                     payload_hist['expiration_date'] = exp_date.isoformat()
-                _log_ioc_history(ioc_type, ioc_value, 'created', analyst, payload_hist if payload_hist else None)
+                _log_ioc_history(ioc_type, ioc_value, 'created', analyst, payload_hist)
                 total_new += 1
                 summary[ioc_type] = summary.get(ioc_type, {'updated': 0, 'new': 0})
                 summary[ioc_type]['new'] += 1
@@ -1268,6 +1316,9 @@ def upload_txt():
         username = current_user.username.lower()
         ttl = request.form.get('ttl', 'Permanent')
         campaign_name = (request.form.get('campaign_name') or '').strip() or None
+        tags_raw = request.form.get('tags') or request.form.get('tags_for_all') or ''
+        tags_list = [t.strip() for t in tags_raw.split(',') if t.strip()][:50]
+        tags_json = json.dumps(tags_list) if tags_list else '[]'
         campaign_id = None
         if campaign_name:
             c = Campaign.query.filter_by(name=campaign_name).first()
@@ -1352,6 +1403,8 @@ def upload_txt():
                     existing.ticket_id = meta['ticket_id'] or existing.ticket_id
                     if campaign_id is not None:
                         existing.campaign_id = campaign_id
+                    if tags_list:
+                        existing.tags = tags_json
                     updated_count += 1
                 else:
                     rare = _compute_rare_find_fields(ioc_type, value)
@@ -1368,11 +1421,15 @@ def upload_txt():
                         expiration_date=exp_date, created_at=meta['created_at'],
                         campaign_id=campaign_id, user_id=store_user_id,
                         rare=rare,
+                        tags=tags_json,
                     ))
-                    payload_hist = {}
+                    payload_hist = {
+                        'entered_by': current_user.username or '',
+                        'assigned_to': store_analyst,
+                    }
                     if exp_date:
                         payload_hist['expiration_date'] = exp_date.isoformat()
-                    _log_ioc_history(ioc_type, value, 'created', store_analyst, payload_hist if payload_hist else None)
+                    _log_ioc_history(ioc_type, value, 'created', store_analyst, payload_hist)
                     new_count += 1
             try:
                 _commit_with_retry()

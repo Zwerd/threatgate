@@ -354,6 +354,13 @@ cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/"
 [[ -f "${SCRIPT_DIR}/reset_data.py" ]]      && cp "${SCRIPT_DIR}/reset_data.py"      "${APP_DIR}/"
 [[ -f "${SCRIPT_DIR}/create_lab_users.py" ]] && cp "${SCRIPT_DIR}/create_lab_users.py" "${APP_DIR}/"
 
+# scripts/ (reset_admin_password.py, etc.)
+if [[ -d "${SCRIPT_DIR}/scripts" ]]; then
+    mkdir -p "${APP_DIR}/scripts"
+    cp -r "${SCRIPT_DIR}/scripts/"* "${APP_DIR}/scripts/" 2>/dev/null || true
+    ok "scripts/ copied."
+fi
+
 # Templates
 mkdir -p "${APP_DIR}/templates"
 cp -r "${SCRIPT_DIR}/templates/"* "${APP_DIR}/templates/"

@@ -291,6 +291,8 @@ async function addSingleToStaging() {
     const ticket_id = (document.getElementById('iocTicketId') && document.getElementById('iocTicketId').value) ? document.getElementById('iocTicketId').value.trim() : '';
     const comment = (document.getElementById('iocComment') && document.getElementById('iocComment').value) ? document.getElementById('iocComment').value.trim() : '';
     const expiration = (document.getElementById('iocTTL') && document.getElementById('iocTTL').value) ? document.getElementById('iocTTL').value : 'Permanent';
+    const tagsInput = document.getElementById('iocTags');
+    const tagsStr = (tagsInput && tagsInput.value) ? tagsInput.value.trim() : '';
 
     const tbody = document.getElementById('singleStagingTableBody');
     const countEl = document.getElementById('singleStagingCount');
@@ -301,7 +303,7 @@ async function addSingleToStaging() {
         const res = await fetch('/api/preview-single', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type, value, ticket_id: ticket_id || undefined, ttl: expiration, comment })
+            body: JSON.stringify({ type, value, ticket_id: ticket_id || undefined, ttl: expiration, comment, tags: tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(Boolean) : undefined })
         });
         const result = await res.json();
         if (!result.success || !result.item) {
@@ -314,6 +316,8 @@ async function addSingleToStaging() {
         const dataPerm = conflict ? ' data-existing-permanent="true"' : '';
         const ioc = escapeHtml(item.ioc || '');
         const typeEsc = escapeHtml(item.type || '');
+        const tagsDisplay = Array.isArray(item.tags) ? (item.tags || []).join(', ') : (item.tags || '');
+        const tagsEsc = escapeHtml(tagsDisplay);
         const ticketEsc = escapeHtml(item.ticket_id || '');
         const analystEsc = escapeHtml(item.analyst || '');
         const dateEsc = escapeHtml(item.date || '');
@@ -330,6 +334,7 @@ async function addSingleToStaging() {
         row.innerHTML = `
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ioc">${ioc}</td>
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="type">${typeEsc}</td>
+            <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="tags">${tagsEsc}</td>
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticketEsc}</td>
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analystEsc}</td>
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${dateEsc}</td>
@@ -391,7 +396,7 @@ document.getElementById('csvForm').addEventListener('submit', (e) => { e.prevent
 // ---- Staging Helpers ----
 
 const TXT_STAGING_TTL_OPTIONS = ['Permanent', '1 Week', '1 Month', '3 Months', '1 Year'];
-const STAGING_EDITABLE_FIELDS = new Set(['ticket_id', 'comment', 'expiration']);
+const STAGING_EDITABLE_FIELDS = new Set(['ticket_id', 'comment', 'expiration', 'tags']);
 
 function validateStagingItem(item) {
     if (!item || !item.ioc || !item.type) return 'IOC value and type are required';
@@ -492,8 +497,15 @@ function attachStagingRowActionsForRow(tr, ttlSelectId, campaignSelectId, source
     });
 }
 
-/** Attach Approve/Edit/Delete to staging rows in a tbody. ttlSelectId, campaignSelectId, tableBodyId identify the context. */
-function attachStagingRowActions(tbody, ttlSelectId, campaignSelectId, source) {
+/** Parse "Tags (for all)" input into array (comma-separated, max 50). */
+function getTagsForAllFromInput(inputId) {
+    const el = document.getElementById(inputId);
+    if (!el || !el.value) return [];
+    return el.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50);
+}
+
+/** Attach Approve/Edit/Delete to staging rows in a tbody. ttlSelectId, campaignSelectId, source; optional tagsInputId for "Tags (for all)". */
+function attachStagingRowActions(tbody, ttlSelectId, campaignSelectId, source, tagsInputId) {
     if (!tbody) return;
     const _src = source || 'single';
     tbody.querySelectorAll('.txt-staging-approve').forEach(btn => {
@@ -508,11 +520,13 @@ function attachStagingRowActions(tbody, ttlSelectId, campaignSelectId, source) {
             const campaignSel = document.getElementById(campaignSelectId);
             const ttl = ttlEl ? ttlEl.value : 'Permanent';
             const campaign_name = campaignSel && campaignSel.value ? campaignSel.value : '';
+            const payload = { items: [item], ttl, campaign_name, source: _src };
+            if (tagsInputId) payload.tags = getTagsForAllFromInput(tagsInputId);
             try {
                 const response = await fetch('/api/submit-staging', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: [item], ttl, campaign_name, source: _src })
+                    body: JSON.stringify(payload)
                 });
                 const result = await response.json().catch(() => ({}));
                 if (result.success) {
@@ -587,6 +601,8 @@ document.getElementById('csvPreviewBtn').addEventListener('click', async () => {
                 const dataPerm = conflict ? ' data-existing-permanent="true"' : '';
                 const ioc = escapeHtml(item.ioc || '');
                 const type = escapeHtml(item.type || '');
+                const tagsDisplay = Array.isArray(item.tags) ? (item.tags || []).join(', ') : (item.tags || '');
+                const tags = escapeHtml(tagsDisplay);
                 const ticket = escapeHtml(item.ticket_id || '');
                 const analyst = escapeHtml(item.analyst || '');
                 const date = escapeHtml(item.date || '');
@@ -600,6 +616,7 @@ document.getElementById('csvPreviewBtn').addEventListener('click', async () => {
                 return `<tr data-idx="${idx}" class="${rowClass}"${dataPerm}>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ioc">${ioc}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="type">${type}</td>
+                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="tags">${tags}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticket}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analyst}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${date}</td>
@@ -617,7 +634,7 @@ document.getElementById('csvPreviewBtn').addEventListener('click', async () => {
             }).join('');
             countEl.textContent = t('bulk.found_count', {count: result.items.length});
             area.classList.remove('hidden');
-            attachStagingRowActions(tbody, 'csvTTL', 'csvCampaignSelect', 'csv');
+            attachStagingRowActions(tbody, 'csvTTL', 'csvCampaignSelect', 'csv', 'csvTagsForAll');
         } else {
             showToast(result.message || 'Preview failed', 'error');
         }
@@ -644,13 +661,16 @@ document.getElementById('csvApproveAllBtn').addEventListener('click', async () =
     const ttl = document.getElementById('csvTTL').value;
     const campaignSel = document.getElementById('csvCampaignSelect');
     const campaign_name = campaignSel && campaignSel.value ? campaignSel.value : '';
+    const tags = getTagsForAllFromInput('csvTagsForAll');
     try {
         showToast(t('toast.importing_items', {count: items.length}), 'success');
         const itemsWithExp = items.map(it => ({ ...it, expiration: it.expiration || ttl }));
+        const body = { items: itemsWithExp, ttl, campaign_name, source: 'csv' };
+        if (tags.length) body.tags = tags;
         const response = await fetch('/api/submit-staging', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: itemsWithExp, ttl, campaign_name, source: 'csv' })
+            body: JSON.stringify(body)
         });
         const result = await response.json().catch(() => ({}));
         if (result.success) {
@@ -730,21 +750,23 @@ document.getElementById('singleApproveAllBtn').addEventListener('click', async (
 
 function getTxtStagingRowData(tr) {
     const cells = tr.querySelectorAll('td[data-field]');
-    if (!cells || cells.length < 7) return null;
+    if (!cells || cells.length < 8) return null;
     const ioc = (cells[0] && cells[0].textContent) ? cells[0].textContent.trim() : '';
     const type = (cells[1] && cells[1].textContent) ? cells[1].textContent.trim() : '';
-    const ticket_id = (cells[2] && cells[2].textContent) ? cells[2].textContent.trim() : '';
-    const analyst = (cells[3] && cells[3].textContent) ? cells[3].textContent.trim() : '';
-    const date = (cells[4] && cells[4].textContent) ? cells[4].textContent.trim() : '';
-    const comment = (cells[5] && cells[5].textContent) ? cells[5].textContent.trim() : '';
-    const expCell = cells[6];
+    const tagsRaw = (cells[2] && cells[2].textContent) ? cells[2].textContent.trim() : '';
+    const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const ticket_id = (cells[3] && cells[3].textContent) ? cells[3].textContent.trim() : '';
+    const analyst = (cells[4] && cells[4].textContent) ? cells[4].textContent.trim() : '';
+    const date = (cells[5] && cells[5].textContent) ? cells[5].textContent.trim() : '';
+    const comment = (cells[6] && cells[6].textContent) ? cells[6].textContent.trim() : '';
+    const expCell = cells[7];
     let expiration = '';
     if (expCell) {
         const sel = expCell.querySelector('select');
         expiration = sel ? sel.value : (expCell.textContent || '').trim();
     }
     if (!ioc || !type) return null;
-    return { ioc, type, ticket_id, analyst, date, comment, expiration: expiration || 'Permanent' };
+    return { ioc, type, tags, ticket_id, analyst, date, comment, expiration: expiration || 'Permanent' };
 }
 
 // ---- TXT Preview + Approve ----
@@ -781,6 +803,8 @@ document.getElementById('txtPreviewBtn').addEventListener('click', async () => {
                 const dataPerm = conflict ? ' data-existing-permanent="true"' : '';
                 const ioc = escapeHtml(item.ioc || '');
                 const type = escapeHtml(item.type || '');
+                const tagsDisplay = Array.isArray(item.tags) ? (item.tags || []).join(', ') : (item.tags || '');
+                const tags = escapeHtml(tagsDisplay);
                 const ticket = escapeHtml(item.ticket_id || '');
                 const analyst = escapeHtml(item.analyst || '');
                 const date = escapeHtml(item.date || '');
@@ -794,6 +818,7 @@ document.getElementById('txtPreviewBtn').addEventListener('click', async () => {
                 return `<tr data-idx="${idx}" class="${rowClass}"${dataPerm}>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ioc">${ioc}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="type">${type}</td>
+                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="tags">${tags}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticket}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analyst}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${date}</td>
@@ -811,7 +836,7 @@ document.getElementById('txtPreviewBtn').addEventListener('click', async () => {
             }).join('');
             countEl.textContent = t('bulk.found_count', {count: result.items.length});
             area.classList.remove('hidden');
-            attachStagingRowActions(tbody, 'txtTTL', 'txtCampaignSelect', 'txt');
+            attachStagingRowActions(tbody, 'txtTTL', 'txtCampaignSelect', 'txt', 'txtTagsForAll');
         } else {
             showToast(result.message || 'Preview failed', 'error');
         }
@@ -838,14 +863,17 @@ document.getElementById('txtApproveAllBtn').addEventListener('click', async () =
     const ttl = document.getElementById('txtTTL').value;
     const campaignSel = document.getElementById('txtCampaignSelect');
     const campaign_name = campaignSel && campaignSel.value ? campaignSel.value : '';
+    const tags = getTagsForAllFromInput('txtTagsForAll');
     try {
         showToast(t('toast.importing_items', {count: items.length}), 'success');
         const ttlVal = document.getElementById('txtTTL').value;
         const itemsWithExp = items.map(it => ({ ...it, expiration: it.expiration || ttlVal }));
+        const body = { items: itemsWithExp, ttl: ttlVal, campaign_name, source: 'txt' };
+        if (tags.length) body.tags = tags;
         const response = await fetch('/api/submit-staging', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: itemsWithExp, ttl: ttlVal, campaign_name, source: 'txt' })
+            body: JSON.stringify(body)
         });
         const result = await response.json().catch(() => ({}));
         if (result.success) {
@@ -900,6 +928,8 @@ document.getElementById('pastePreviewBtn').addEventListener('click', async () =>
                 const dataPerm = conflict ? ' data-existing-permanent="true"' : '';
                 const ioc = escapeHtml(item.ioc || '');
                 const type = escapeHtml(item.type || '');
+                const tagsDisplay = Array.isArray(item.tags) ? (item.tags || []).join(', ') : (item.tags || '');
+                const tags = escapeHtml(tagsDisplay);
                 const ticket = escapeHtml(item.ticket_id || '');
                 const analyst = escapeHtml(item.analyst || '');
                 const date = escapeHtml(item.date || '');
@@ -913,6 +943,7 @@ document.getElementById('pastePreviewBtn').addEventListener('click', async () =>
                 return `<tr data-idx="${idx}" class="${rowClass}"${dataPerm}>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ioc">${ioc}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="type">${type}</td>
+                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="tags">${tags}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticket}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analyst}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${date}</td>
@@ -930,7 +961,7 @@ document.getElementById('pastePreviewBtn').addEventListener('click', async () =>
             }).join('');
             countEl.textContent = t('bulk.found_count', { count: result.items.length });
             area.classList.remove('hidden');
-            attachStagingRowActions(tbody, 'pasteTTL', 'pasteCampaignSelect', 'paste');
+            attachStagingRowActions(tbody, 'pasteTTL', 'pasteCampaignSelect', 'paste', 'pasteTagsForAll');
         } else {
             showToast(result.message || 'Preview failed', 'error');
         }
@@ -957,13 +988,16 @@ document.getElementById('pasteApproveAllBtn').addEventListener('click', async ()
     const ttl = document.getElementById('pasteTTL').value;
     const campaignSel = document.getElementById('pasteCampaignSelect');
     const campaign_name = campaignSel && campaignSel.value ? campaignSel.value : '';
+    const tags = getTagsForAllFromInput('pasteTagsForAll');
     try {
         showToast(t('toast.importing_items', {count: items.length}), 'success');
         const itemsWithExp = items.map(it => ({ ...it, expiration: it.expiration || ttl }));
+        const body = { items: itemsWithExp, ttl, campaign_name, source: 'paste' };
+        if (tags.length) body.tags = tags;
         const response = await fetch('/api/submit-staging', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: itemsWithExp, ttl, campaign_name, source: 'paste' })
+            body: JSON.stringify(body)
         });
         const result = await response.json().catch(() => ({}));
         if (result.success) {

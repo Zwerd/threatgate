@@ -367,6 +367,14 @@ input:focus, select:focus, textarea:focus {
     animation: pulse 2s ease-in-out infinite;
 }
 
+/* Tab loading spinner (Champs / Reports) */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.animate-spin {
+    animation: spin 0.8s linear infinite;
+}
+
 /* Live Stats only: whole "🟢 Live Updating..." block pulses (CSS-only, no HTML change) */
 @keyframes live-block-pulse {
     0%, 100% { opacity: 1; }
@@ -464,6 +472,17 @@ header.neon-header {
     box-sizing: border-box;
 }
 
+/* Same fix for TTL and Campaign selects in TXT, CSV, and PASTE modes - no clipping of default text */
+#bulk-wrapper-txt select,
+#bulk-wrapper-paste select,
+#bulk-wrapper-csv select {
+    min-height: 2.25rem;
+    height: auto;
+    padding: 0.375rem 0.5rem;
+    line-height: 1.25;
+    box-sizing: border-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .neon-header::after { animation: none; }
 }
@@ -529,7 +548,7 @@ header h1 {
     text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
 }
 
-/* Modern Tab Styles - text can wrap when narrow */
+/* Modern Tab Styles - text can wrap when narrow; text centered (main app and base_app/Admin) */
 .tab-button {
     padding: 0 6px !important;
     margin: 0 !important;
@@ -554,6 +573,7 @@ header h1 {
     max-width: 7rem; /* fixed width so text wraps inside tab without <br> */
     min-width: 0;
     opacity: 0.7;
+    text-align: center;
 }
 
 /* Remove ANY borders from inactive tabs */
@@ -911,20 +931,24 @@ div:has(.tab-button):active {
 .admin-tab-nav {
     display: flex;
     align-items: stretch;
+    justify-content: center;
     gap: 2px;
     margin-bottom: 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    direction: ltr; /* keep tabs LTR so content stays visually centered */
 }
 .admin-tab-nav::-webkit-scrollbar { display: none; }
 
 .admin-tab {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     padding: 10px 18px;
+    min-width: 7rem; /* fixed width so content is visibly centered (like main .tab-button) */
     font-size: 0.875rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.55);
@@ -935,6 +959,22 @@ div:has(.tab-button):active {
     border: none;
     background: transparent;
     cursor: pointer;
+    direction: ltr;
+    text-align: center !important;
+}
+.admin-tab *,
+.admin-tab .admin-tab-inner {
+    text-align: center !important;
+}
+.admin-tab .admin-tab-inner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.admin-tab-label {
+    display: block;
+    text-align: center !important;
 }
 
 .admin-tab:hover {

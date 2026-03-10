@@ -1,12 +1,14 @@
 """
-Feed routes: YARA list/content, generic IOC feeds, PA, CP, ESA, ePO.
+Feed routes: YARA list/content, generic IOC feeds, PA, CP, ESA, ePO, STIX 2.x.
 Register with url_prefix='/feed' so routes are /feed/yara-list, /feed/ip, etc.
 """
 import io
+import json
 import os
 import re
 import csv
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 
 from flask import Blueprint, Response, current_app
 from sqlalchemy import func
@@ -99,6 +101,249 @@ def _feed_resolve_ioc_type(ioc_type_raw):
     return mapping.get(key, (key if key in IOC_FILES else None, None))
 
 
+def _stix_escape_pattern_value(value):
+    """Escape single quotes for STIX pattern value (use \\' inside quoted value)."""
+    if value is None:
+        return ''
+    return (value or '').replace('\\', '\\\\').replace("'", "\\'")
+
+
+def _stix_indicator_pattern(ioc_type, value):
+    """Return STIX 2.1 pattern string for one IOC. Raises ValueError if type unsupported."""
+    v = _stix_escape_pattern_value((value or '').strip())
+    if not v:
+        raise ValueError('empty value')
+    if ioc_type == 'IP':
+        if ':' in v:
+            return f"[ipv6-addr:value = '{v}']"
+        return f"[ipv4-addr:value = '{v}']"
+    if ioc_type == 'Domain':
+        return f"[domain-name:value = '{v}']"
+    if ioc_type == 'URL':
+        return f"[url:value = '{v}']"
+    if ioc_type == 'Email':
+        return f"[email-addr:value = '{v}']"
+    if ioc_type == 'Hash':
+        n = len(v)
+        if n == 32:
+            return f"[file:hashes.'MD5' = '{v}']"
+        if n == 40:
+            return f"[file:hashes.'SHA-1' = '{v}']"
+        if n == 64:
+            return f"[file:hashes.'SHA-256' = '{v}']"
+        if n == 128:
+            return f"[file:hashes.'SHA-512' = '{v}']"
+        return f"[file:hashes.'SHA-256' = '{v}']"  # fallback
+    raise ValueError(f'unsupported type {ioc_type}')
+
+
+# Deterministic STIX id per IOC so TAXII Get-by-ID and Manifest are stable across requests.
+STIX_ID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_DNS, 'ziochub.taxii.stix')
+
+
+def _stix_id_for_ioc(row):
+    """Return deterministic STIX 2.1 indicator id for an IOC row (stable across requests)."""
+    return f"indicator--{uuid.uuid5(STIX_ID_NAMESPACE, f'ioc.{row.id}').hex}"
+
+
+def _stix_indicator_from_row(row, now=None):
+    """Build one STIX 2.1 Indicator dict from an IOC row. Returns None if value/pattern invalid."""
+    if now is None:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+    ioc_type = row.type
+    val = (row.value or '').strip()
+    if not val:
+        return None
+    try:
+        pattern = _stix_indicator_pattern(ioc_type, val)
+    except ValueError:
+        return None
+    created_ts = (row.created_at or now).strftime('%Y-%m-%dT%H:%M:%S.000Z') if row.created_at else now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    ind_id = _stix_id_for_ioc(row)
+    name = f"ZIoCHub {ioc_type}: {val[:50]}" + ('...' if len(val) > 50 else '')
+    comment = (row.comment or '')[:200] or None
+    return {
+        'type': 'indicator',
+        'spec_version': '2.1',
+        'id': ind_id,
+        'created': created_ts,
+        'modified': created_ts,
+        'name': name,
+        'description': comment,
+        'pattern_type': 'stix',
+        'pattern': pattern,
+        'indicator_types': ['malicious-activity'],
+        'valid_from': created_ts,
+    }
+
+
+def _feed_stix_bundle(ioc_type_filter=None, hash_length=None):
+    """Build STIX 2.1 Bundle (JSON) of Indicator objects for active IOCs."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    types_to_fetch = [ioc_type_filter] if ioc_type_filter else [t for t in IOC_FILES if t != 'YARA']
+    objects = []
+    for ioc_type in types_to_fetch:
+        if ioc_type not in IOC_FILES or ioc_type == 'YARA':
+            continue
+        rows = _feed_ioc_rows(ioc_type, hash_length=hash_length)
+        for row in rows:
+            ind = _stix_indicator_from_row(row, now)
+            if ind:
+                objects.append(ind)
+    bundle_id = f"bundle--{uuid.uuid4()}"
+    return {'type': 'bundle', 'id': bundle_id, 'objects': objects}
+
+
+def _stix_date_added_iso(dt):
+    """Format datetime as TAXII timestamp (ISO 8601 with microsecond precision)."""
+    if dt is None:
+        return None
+    return dt.strftime('%Y-%m-%dT%H:%M:%S.000000Z') if dt.tzinfo is None else dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
+def _feed_stix_objects_page(
+    added_after=None,
+    offset=0,
+    limit=500,
+    match_ids=None,
+    match_types=None,
+    match_spec_versions=None,
+):
+    """
+    Return one page of STIX 2.1 Indicator objects for TAXII 2.1 Get Objects.
+    Uses stable ordering (created_at, id). Supports added_after and match[] filters.
+    Returns (objects, has_more, first_date_added, last_date_added).
+    first_date_added/last_date_added are ISO timestamp strings or None when no objects.
+    """
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    q = IOC.query.filter(
+        IOC.type != 'YARA',
+        db.or_(IOC.expiration_date.is_(None), IOC.expiration_date > now)
+    )
+    if added_after is not None:
+        q = q.filter(IOC.created_at >= added_after)
+    if match_types is not None and 'indicator' not in match_types:
+        # We only have indicators; if client asked for other types, return empty
+        return [], False, None, None
+    if match_spec_versions is not None and '2.1' not in match_spec_versions:
+        return [], False, None, None
+    q = q.order_by(IOC.created_at, IOC.id)
+    if match_ids is not None and match_ids:
+        want = set(match_ids)
+        # Must resolve STIX id -> row; no DB column so we scan in order and filter
+        all_rows = q.all()
+        rows = [r for r in all_rows if _stix_id_for_ioc(r) in want]
+        rows = rows[offset:offset + limit + 1]
+        has_more = len(rows) > limit
+        if has_more:
+            rows = rows[:limit]
+    else:
+        rows = q.offset(offset).limit(limit + 1).all()
+        has_more = len(rows) > limit
+        if has_more:
+            rows = rows[:limit]
+    objects = []
+    for row in rows:
+        ind = _stix_indicator_from_row(row, now)
+        if ind:
+            objects.append(ind)
+    first_dt = rows[0].created_at if rows else None
+    last_dt = rows[-1].created_at if rows else None
+    first_ts = _stix_date_added_iso(first_dt) if first_dt else None
+    last_ts = _stix_date_added_iso(last_dt) if last_dt else None
+    return objects, has_more, first_ts, last_ts
+
+
+def _feed_stix_object_by_id(object_id):
+    """
+    Return a single STIX 2.1 Indicator for the given TAXII/STIX object id, or None.
+    Also returns date_added (ISO str) for that object for TAXII headers.
+    """
+    if not object_id or not isinstance(object_id, str) or not object_id.strip().startswith('indicator--'):
+        return None, None
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    q = IOC.query.filter(
+        IOC.type != 'YARA',
+        db.or_(IOC.expiration_date.is_(None), IOC.expiration_date > now)
+    ).order_by(IOC.created_at, IOC.id)
+    for row in q.all():
+        if _stix_id_for_ioc(row) == object_id.strip():
+            ind = _stix_indicator_from_row(row, now)
+            if ind:
+                ts = _stix_date_added_iso(row.created_at) if row.created_at else None
+                return ind, ts
+            break
+    return None, None
+
+
+def _feed_stix_manifest_page(
+    added_after=None,
+    offset=0,
+    limit=500,
+    match_ids=None,
+    match_types=None,
+    match_spec_versions=None,
+):
+    """
+    Return one page of TAXII 2.1 manifest records (id, date_added, version, media_type).
+    Same filters and ordering as _feed_stix_objects_page.
+    Returns (manifest_objects, has_more, first_date_added, last_date_added).
+    """
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    media_type = 'application/stix+json;version=2.1'
+    q = IOC.query.filter(
+        IOC.type != 'YARA',
+        db.or_(IOC.expiration_date.is_(None), IOC.expiration_date > now)
+    )
+    if added_after is not None:
+        q = q.filter(IOC.created_at >= added_after)
+    if match_types is not None and 'indicator' not in match_types:
+        return [], False, None, None
+    if match_spec_versions is not None and '2.1' not in match_spec_versions:
+        return [], False, None, None
+    q = q.order_by(IOC.created_at, IOC.id)
+    if match_ids is not None and match_ids:
+        want = set(match_ids)
+        all_rows = q.all()
+        rows = [r for r in all_rows if _stix_id_for_ioc(r) in want]
+        rows = rows[offset:offset + limit + 1]
+        has_more = len(rows) > limit
+        if has_more:
+            rows = rows[:limit]
+    else:
+        rows = q.offset(offset).limit(limit + 1).all()
+        has_more = len(rows) > limit
+        if has_more:
+            rows = rows[:limit]
+    manifest_objects = []
+    for row in rows:
+        created_ts = (row.created_at or now).strftime('%Y-%m-%dT%H:%M:%S.000Z') if row.created_at else now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        manifest_objects.append({
+            'id': _stix_id_for_ioc(row),
+            'date_added': _stix_date_added_iso(row.created_at) if row.created_at else created_ts,
+            'version': created_ts,
+            'media_type': media_type,
+        })
+    first_dt = rows[0].created_at if rows else None
+    last_dt = rows[-1].created_at if rows else None
+    first_ts = _stix_date_added_iso(first_dt) if first_dt else None
+    last_ts = _stix_date_added_iso(last_dt) if last_dt else None
+    return manifest_objects, has_more, first_ts, last_ts
+
+
+def _feed_stix_object_versions(object_id):
+    """
+    Return list of version entries for one object (TAXII 2.1 Get Object Versions).
+    ZIoCHub has one version per IOC (created = modified). Returns (versions_list, first_date_added, last_date_added) or (None, None, None) if not found.
+    """
+    ind, date_added = _feed_stix_object_by_id(object_id)
+    if ind is None:
+        return None, None, None
+    created_ts = ind.get('created') or ind.get('modified')
+    versions = [{'id': ind['id'], 'date_added': date_added or created_ts, 'version': created_ts}]
+    return versions, date_added, date_added
+
+
 # --- YARA feeds (specific paths first) ---
 
 @bp.route('/yara-list', methods=['GET'])
@@ -134,6 +379,26 @@ def feed_yara_content(filename):
         return Response(content, mimetype='text/plain')
     except Exception as e:
         return Response(f"Error: {e}", mimetype='text/plain', status=500)
+
+
+# --- STIX 2.x feed (TAXII/STIX format) ---
+
+@bp.route('/stix', methods=['GET'])
+@bp.route('/stix/<ioc_type>', methods=['GET'])
+def feed_stix(ioc_type=None):
+    """STIX 2.1 JSON bundle of active IOCs. /feed/stix = all types; /feed/stix/ip = IP only, etc."""
+    hash_length = None
+    if ioc_type:
+        mapped_type, hash_length = _feed_resolve_ioc_type(ioc_type)
+        if mapped_type is None or mapped_type not in IOC_FILES or mapped_type == 'YARA':
+            return Response(json.dumps({'error': 'Invalid type'}), mimetype='application/json', status=404)
+        ioc_type = mapped_type
+    bundle = _feed_stix_bundle(ioc_type_filter=ioc_type, hash_length=hash_length)
+    return Response(
+        json.dumps(bundle, ensure_ascii=False),
+        mimetype='application/json',
+        headers={'Content-Disposition': 'inline', 'X-Content-Type-Options': 'nosniff'}
+    )
 
 
 # --- Generic IOC feed ---

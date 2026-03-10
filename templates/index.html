@@ -52,17 +52,7 @@
             <!-- LEFT: Logo + Navigation Tabs -->
             <div class="navbar-left">
                 <div class="navbar-logo">
-                    <a href="{{ url_for('index') }}" class="navbar-logo-link" aria-label="Go to Live Stats">
-                        <img src="{{ url_for('static', filename='ziochub_smaller.png') }}" alt="ZIoCHub" class="w-14 h-14 object-contain flex-shrink-0" style="filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.4));">
-                    </a>
-                    <div>
-                        <h1 class="text-2xl font-bold tracking-wider neon-text flex items-center gap-2">
-                            <span class="text-white brand-name">ZIoCHub v{{ version }}</span>
-                            <span class="text-xs font-semibold px-2 py-1 rounded commander-badge">IOC & YARA Mgmt</span>
-                        </h1>
-                        <p class="text-xs text-secondary mt-0.5 tracking-wide">Zwerd Indicators of Compromise Hub - platform for IOC & YARA management</p>
-                        <p class="text-xs text-secondary tracking-wide">Created by <a href="https://zwerd.github.io/" target="_blank" rel="noopener noreferrer" class="text-[#00d4ff] font-semibold creator-name hover:underline">Zwerd</a></p>
-                    </div>
+                    {% include 'partials/_brand_block.html' %}
                 </div>
                 <nav class="navbar-tabs">
                     <button class="tab-button" data-tab="live-stats" data-i18n="tab.stats">
@@ -280,15 +270,15 @@
                             <table class="w-full border-collapse">
                                 <thead>
                                     <tr class="bg-tertiary">
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.found_in">Found in</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.ioc">IOC</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.date">Date</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.user">User</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.ticket">Ticket ID</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.comment">Comment</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.tags">Tags</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.campaign">Campaign</th>
-                                        <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.expiration">Expiration Status</th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="file_type" title="Sort"><span data-i18n="search.col.found_in">Found in</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="ioc" title="Sort"><span data-i18n="search.col.ioc">IOC</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="date" title="Sort"><span data-i18n="search.col.date">Date</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="user" title="Sort"><span data-i18n="search.col.user">User</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="ref" title="Sort"><span data-i18n="search.col.ticket">Ticket ID</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="comment" title="Sort"><span data-i18n="search.col.comment">Comment</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="tags" title="Sort"><span data-i18n="search.col.tags">Tags</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="campaign_name" title="Sort"><span data-i18n="search.col.campaign">Campaign</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
+                                        <th class="border border-white/10 px-4 py-2 text-left search-sortable cursor-pointer select-none hover:bg-white/5" data-sort="expiration_status" title="Sort"><span data-i18n="search.col.expiration">Expiration Status</span><span class="search-sort-arrow ml-1 text-cyan-400" aria-hidden="true"></span></th>
                                         <th class="border border-white/10 px-4 py-2 text-left" data-i18n="search.col.actions">Actions</th>
                                     </tr>
                                 </thead>
@@ -406,6 +396,10 @@
                             <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.default_comment">Default Comment</label>
                             <input type="text" id="txtDefaultComment" placeholder="If line has no comment" class="h-8 text-sm w-full" data-i18n-placeholder="bulk.default_comment_placeholder">
                         </div>
+                        <div class="flex flex-col flex-1 min-w-[120px]">
+                            <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.tags_for_all">Tags (for all)</label>
+                            <input type="text" id="txtTagsForAll" placeholder="e.g. malware, phishing" class="h-8 text-sm w-full" data-i18n-placeholder="bulk.tags_placeholder">
+                        </div>
                         <button type="button" id="txtPreviewBtn" class="btn-cmd-primary" data-i18n="bulk.preview">Preview</button>
                     </div>
 
@@ -438,6 +432,10 @@
                             <div class="flex flex-col flex-1 min-w-[120px]">
                                 <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.default_comment">Default Comment</label>
                                 <input type="text" id="pasteDefaultComment" placeholder="If no comment" class="h-8 text-sm w-full" data-i18n-placeholder="bulk.default_comment_placeholder">
+                            </div>
+                            <div class="flex flex-col flex-1 min-w-[120px]">
+                                <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.tags_for_all">Tags (for all)</label>
+                                <input type="text" id="pasteTagsForAll" placeholder="e.g. malware, phishing" class="h-8 text-sm w-full" data-i18n-placeholder="bulk.tags_placeholder">
                             </div>
                             <button type="button" id="pastePreviewBtn" class="btn-cmd-primary" data-i18n="bulk.preview">Preview</button>
                         </div>
@@ -473,6 +471,10 @@
                                 <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.default_comment">Default Comment</label>
                                 <input type="text" id="csvComment" placeholder="Comment for all" class="h-8 text-sm w-full" data-i18n-placeholder="bulk.comment_all_placeholder">
                             </div>
+                            <div class="flex flex-col flex-1 min-w-[120px]">
+                                <label class="text-xs font-semibold mb-0.5" data-i18n="bulk.tags_for_all">Tags (for all)</label>
+                                <input type="text" id="csvTagsForAll" placeholder="e.g. malware, phishing" class="h-8 text-sm w-full" data-i18n-placeholder="bulk.tags_placeholder">
+                            </div>
                             <button type="button" id="csvPreviewBtn" class="btn-cmd-primary" data-i18n="bulk.preview">Preview</button>
                         </form>
                     </div>
@@ -490,6 +492,7 @@
                                         <tr>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ioc">IOC</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.type">Type</th>
+                                            <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="search.col.tags">Tags</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ticket">Ticket</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.analyst">Analyst</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.date">Date</th>
@@ -514,6 +517,7 @@
                                         <tr>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ioc">IOC</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.type">Type</th>
+                                            <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="search.col.tags">Tags</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ticket">Ticket</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.analyst">Analyst</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.date">Date</th>
@@ -538,6 +542,7 @@
                                         <tr>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ioc">IOC</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.type">Type</th>
+                                            <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="search.col.tags">Tags</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ticket">Ticket</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.analyst">Analyst</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.date">Date</th>
@@ -562,6 +567,7 @@
                                         <tr>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ioc">IOC</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.type">Type</th>
+                                            <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="search.col.tags">Tags</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.ticket">Ticket</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.analyst">Analyst</th>
                                             <th class="border border-white/10 px-3 py-2 text-left text-sm font-semibold" data-i18n="bulk.staging_col.date">Date</th>
@@ -866,10 +872,14 @@
                             </select>
                             <button type="button" id="feedPulseRefreshBtn" class="btn-cmd-primary btn-cmd-sm" data-i18n="feedpulse.refresh">Refresh</button>
                             <button type="button" id="feedPulseExportBtn" class="btn-cmd-primary btn-cmd-sm" data-i18n="feedpulse.export_report">Export Report</button>
-                            <a id="feedPulseAllowlistLink" href="/admin/allowlist" target="_blank" class="hidden btn-cmd-neutral btn-cmd-sm">Allowlist</a>
+                            <button type="button" id="feedPulseAllowlistBtn" class="hidden btn-cmd-neutral btn-cmd-sm" data-i18n="feedpulse.allowlist_btn">Allowlist</button>
                             <button type="button" id="feedCatalogBtn" class="btn-cmd-neutral btn-cmd-sm flex items-center gap-1.5">
                                 <img src="{{ url_for('static', filename='ziochub_smaller.png') }}" alt="" class="w-4 h-4 object-contain">
                                 <span data-i18n="feedpulse.feed_catalog">Feed Catalog</span>
+                            </button>
+                            <button type="button" id="taxiiCatalogBtn" class="btn-cmd-neutral btn-cmd-sm flex items-center gap-1.5">
+                                <span>📦</span>
+                                <span data-i18n="taxii_catalog.btn">TAXII Catalog</span>
                             </button>
                         </div>
                     </div>
@@ -969,6 +979,20 @@
                             <span data-i18n="feedpulse.anomaly_title_failed">Sanity Check Failed:</span>
                         </h4>
                         <ul id="feedPulseAnomaliesList" class="space-y-2 text-sm text-amber-100"></ul>
+                    </div>
+
+                    <!-- Allowlist view popup (read-only; admin edits in Admin → Allowlist) -->
+                    <div id="feedPulseAllowlistModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                        <div class="bg-secondary rounded-lg shadow-xl border border-white/10 w-full max-w-2xl max-h-[85vh] flex flex-col mx-4">
+                            <div class="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10">
+                                <h3 class="text-lg font-bold accent-blue" data-i18n="feedpulse.allowlist_title">Allowlist (read-only)</h3>
+                                <button type="button" id="feedPulseAllowlistModalClose" class="text-secondary hover:text-primary p-1 rounded" aria-label="Close">&times;</button>
+                            </div>
+                            <div class="flex-1 min-h-0 overflow-hidden p-4">
+                                <p class="text-xs text-secondary mb-2" data-i18n="feedpulse.allowlist_hint">Content managed by Admin. Lines starting with # are comments.</p>
+                                <pre id="feedPulseAllowlistContent" class="w-full h-full min-h-[200px] max-h-[60vh] overflow-auto p-3 rounded bg-tertiary border border-white/10 text-sm font-mono whitespace-pre-wrap break-words text-primary">Loading...</pre>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1640,14 +1664,14 @@
                     </h4>
                     <p class="text-xs text-secondary mb-2" data-i18n="feed_catalog.standard_desc">Newline-separated list of IOC values. Compatible with most firewalls and SIEMs.</p>
                     <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/ip</span><span class="text-slate-500">IP Addresses</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/domain</span><span class="text-slate-500">Domains</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/url</span><span class="text-slate-500">URLs</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/hash</span><span class="text-slate-500">All Hashes</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/md5</span><span class="text-slate-500">MD5 only</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/sha1</span><span class="text-slate-500">SHA-1 only</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/sha256</span><span class="text-slate-500">SHA-256 only</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/email</span><span class="text-slate-500">Email Addresses</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/ip" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/ip</a><span class="text-slate-500">IP Addresses</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/domain" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/domain</a><span class="text-slate-500">Domains</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/url" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/url</a><span class="text-slate-500">URLs</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/hash" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/hash</a><span class="text-slate-500">All Hashes</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/md5" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/md5</a><span class="text-slate-500">MD5 only</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/sha1" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/sha1</a><span class="text-slate-500">SHA-1 only</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/sha256" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/sha256</a><span class="text-slate-500">SHA-256 only</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/email" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/email</a><span class="text-slate-500">Email Addresses</span></div>
                     </div>
                 </div>
 
@@ -1658,12 +1682,12 @@
                     </h4>
                     <p class="text-xs text-secondary mb-2" data-i18n="feed_catalog.paloalto_desc">External Dynamic List format. URLs are served without the http(s):// protocol prefix.</p>
                     <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/pa/ip</span><span class="text-slate-500">IP Addresses</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/pa/domain</span><span class="text-slate-500">Domains</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/pa/url</span><span class="text-slate-500">URLs (no protocol)</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/pa/md5</span><span class="text-slate-500">MD5</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/pa/sha256</span><span class="text-slate-500">SHA-256</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/pa/email</span><span class="text-slate-500">Email Addresses</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/pa/ip" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/pa/ip</a><span class="text-slate-500">IP Addresses</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/pa/domain" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/pa/domain</a><span class="text-slate-500">Domains</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/pa/url" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/pa/url</a><span class="text-slate-500">URLs (no protocol)</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/pa/md5" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/pa/md5</a><span class="text-slate-500">MD5</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/pa/sha256" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/pa/sha256</a><span class="text-slate-500">SHA-256</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/pa/email" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/pa/email</a><span class="text-slate-500">Email Addresses</span></div>
                     </div>
                 </div>
 
@@ -1674,12 +1698,12 @@
                     </h4>
                     <p class="text-xs text-secondary mb-2" data-i18n="feed_catalog.checkpoint_desc">CSV format compatible with Check Point IoC feed import.</p>
                     <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/cp/ip</span><span class="text-slate-500">IP Addresses</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/cp/domain</span><span class="text-slate-500">Domains</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/cp/url</span><span class="text-slate-500">URLs</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/cp/md5</span><span class="text-slate-500">MD5</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/cp/sha256</span><span class="text-slate-500">SHA-256</span></div>
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/cp/email</span><span class="text-slate-500">Email Addresses</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/cp/ip" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/cp/ip</a><span class="text-slate-500">IP Addresses</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/cp/domain" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/cp/domain</a><span class="text-slate-500">Domains</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/cp/url" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/cp/url</a><span class="text-slate-500">URLs</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/cp/md5" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/cp/md5</a><span class="text-slate-500">MD5</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/cp/sha256" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/cp/sha256</a><span class="text-slate-500">SHA-256</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/cp/email" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/cp/email</a><span class="text-slate-500">Email Addresses</span></div>
                     </div>
                 </div>
 
@@ -1690,7 +1714,7 @@
                     </h4>
                     <p class="text-xs text-secondary mb-2" data-i18n="feed_catalog.cisco_esa_desc">Comma-separated email list for Cisco Email Security Appliance content filters.</p>
                     <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/esa/email</span><span class="text-slate-500">Email Addresses (CSV)</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/esa/email" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/esa/email</a><span class="text-slate-500">Email Addresses (CSV)</span></div>
                     </div>
                 </div>
 
@@ -1701,8 +1725,21 @@
                     </h4>
                     <p class="text-xs text-secondary mb-2" data-i18n="feed_catalog.trellix_epo_desc">CSV hash feeds grouped by Ticket ID for Trellix Endpoint Security / ePO policy import.</p>
                     <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/epo/files-list</span><span class="text-slate-500">List of Ticket IDs</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/epo/files-list" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/epo/files-list</a><span class="text-slate-500">List of Ticket IDs</span></div>
                         <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/epo/&lt;ticket_id&gt;</span><span class="text-slate-500">Hashes for specific ticket</span></div>
+                    </div>
+                </div>
+
+                <!-- TAXII / STIX 2.x: summary + link to TAXII Catalog -->
+                <div>
+                    <h4 class="text-base font-semibold text-indigo-400 mb-2 flex items-center gap-2">
+                        <span>📦</span> <span data-i18n="feed_catalog.stix">TAXII / STIX 2.x</span>
+                    </h4>
+                    <p class="text-xs text-secondary mb-2" data-i18n="feed_catalog.stix_short"></p>
+                    <button type="button" id="feedCatalogOpenTaxiiCatalog" class="btn-cmd-neutral btn-cmd-sm mb-2" data-i18n="feed_catalog.open_taxii_catalog">Open TAXII Catalog</button>
+                    <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/taxii2/" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:text-cyan-400 hover:underline">/taxii2/</a><span class="text-slate-500" data-i18n="feed_catalog.stix_discovery">Discovery</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/stix" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/stix</a><span class="text-slate-500" data-i18n="feed_catalog.stix_all">All types (JSON bundle)</span></div>
                     </div>
                 </div>
 
@@ -1713,7 +1750,7 @@
                     </h4>
                     <p class="text-xs text-secondary mb-2" data-i18n="feed_catalog.yara_desc">List and download approved YARA rule files for EDR / sandbox integration.</p>
                     <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
-                        <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/yara-list</span><span class="text-slate-500">All .yar filenames</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center"><a href="/feed/yara-list" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline">/feed/yara-list</a><span class="text-slate-500">All .yar filenames</span></div>
                         <div class="px-3 py-1.5 flex justify-between items-center"><span class="text-slate-300">/feed/yara-content/&lt;file&gt;</span><span class="text-slate-500">Raw rule content</span></div>
                     </div>
                 </div>
@@ -1721,6 +1758,49 @@
             </div>
             <div class="flex justify-end mt-4 flex-shrink-0">
                 <button type="button" id="feedCatalogCloseBottom" class="btn-cmd-neutral" data-i18n="modal.close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAXII Catalog Modal (TAXII 2.1 server endpoints) -->
+    <div id="taxiiCatalogModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-secondary rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col border border-white/10">
+            <div class="flex items-center justify-between mb-4 flex-shrink-0">
+                <h3 class="text-xl font-bold text-indigo-400 flex items-center gap-2">
+                    <span>📦</span>
+                    <span data-i18n="taxii_catalog.title">TAXII 2.1 Server Endpoints</span>
+                </h3>
+                <button type="button" id="taxiiCatalogClose" class="text-secondary hover:text-primary text-2xl leading-none">&times;</button>
+            </div>
+            <p class="text-sm text-secondary mb-4 flex-shrink-0" data-i18n="taxii_catalog.description">ZIoCHub exposes active IOCs as STIX 2.1 indicators over TAXII 2.1. Use these URLs in TAXII clients (e.g. Cisco IronPort ESA, ThreatConnect). Send <code class="text-cyan-400">Accept: application/taxii+json;version=2.1</code>.</p>
+            <div class="overflow-y-auto flex-1 min-h-0 space-y-4 text-sm">
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-300 mb-1" data-i18n="taxii_catalog.server_info">Server information</h4>
+                    <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><a href="/taxii2/" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:text-cyan-400 hover:underline truncate">/taxii2/</a><span class="text-slate-500 flex-shrink-0" data-i18n="taxii_catalog.discovery">Discovery</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><a href="/taxii2/ziochub/" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline truncate">/taxii2/ziochub/</a><span class="text-slate-500 flex-shrink-0" data-i18n="taxii_catalog.api_root">API Root</span></div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-300 mb-1" data-i18n="taxii_catalog.collections">Collections</h4>
+                    <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><a href="/taxii2/ziochub/collections/" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline truncate">/taxii2/ziochub/collections/</a><span class="text-slate-500 flex-shrink-0">List collections</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><a href="/taxii2/ziochub/collections/indicators/" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline truncate">/taxii2/ziochub/collections/indicators/</a><span class="text-slate-500 flex-shrink-0">Collection: indicators</span></div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-300 mb-1" data-i18n="taxii_catalog.objects">Objects &amp; manifest</h4>
+                    <div class="bg-tertiary rounded border border-white/5 divide-y divide-white/5 font-mono text-xs">
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><a href="/taxii2/ziochub/collections/indicators/objects/" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:text-cyan-400 hover:underline truncate">/taxii2/ziochub/collections/indicators/objects/</a><span class="text-slate-500 flex-shrink-0" data-i18n="taxii_catalog.get_objects">Get Objects (paginated)</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><a href="/taxii2/ziochub/collections/indicators/manifest/" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:text-cyan-400 hover:underline truncate">/taxii2/ziochub/collections/indicators/manifest/</a><span class="text-slate-500 flex-shrink-0" data-i18n="taxii_catalog.manifest">Get Manifests</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><span class="text-slate-400 truncate">/taxii2/ziochub/collections/indicators/objects/&lt;id&gt;/</span><span class="text-slate-500 flex-shrink-0" data-i18n="taxii_catalog.get_object">Get an Object</span></div>
+                        <div class="px-3 py-1.5 flex justify-between items-center gap-2"><span class="text-slate-400 truncate">/taxii2/ziochub/collections/indicators/objects/&lt;id&gt;/versions/</span><span class="text-slate-500 flex-shrink-0" data-i18n="taxii_catalog.versions">Get Object Versions</span></div>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500" data-i18n="taxii_catalog.ironport_hint">For Cisco IronPort ESA: set External Threat Feed URL to the Discovery endpoint above (use HTTPS in production).</p>
+            </div>
+            <div class="flex justify-end mt-4 flex-shrink-0">
+                <button type="button" id="taxiiCatalogCloseBottom" class="btn-cmd-neutral" data-i18n="modal.close">Close</button>
             </div>
         </div>
     </div>

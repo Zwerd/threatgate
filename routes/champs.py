@@ -23,9 +23,12 @@ from utils.champs import (
     _week_start,
 )
 from utils.decorators import login_required, admin_required
+from utils.cache import get_cached, set_cached
 
 
 bp = Blueprint('champs_api', __name__, url_prefix='/api')
+
+CHAMPS_CACHE_TTL = 120  # seconds
 
 CHAMPS_SCORING = {
     'ioc_default': 10,
@@ -192,6 +195,10 @@ def get_champs_config():
 def get_champs_leaderboard():
     """Champs 5.0 Ladder: analysts with rank, avatar, display_name, score, trend, medal."""
     method = _get_setting('champs_scoring_method', '1')
+    cache_key = f'champs_leaderboard_{method}'
+    cached = get_cached(cache_key)
+    if cached is not None:
+        return jsonify(cached)
     excluded = _champs_excluded_usernames()
     did_save, rows = save_daily_rank_snapshots(db, IOC, YaraRule, User, ChampRankSnapshot, ActivityEvent, scoring_method=method, exclude_usernames=excluded)
     if not rows:
@@ -243,15 +250,23 @@ def get_champs_leaderboard():
             'trend': trend,
             'streak_days': r.get('streak_days', 0),
         })
-    return jsonify({'success': True, 'leaderboard': leaderboard, 'count': len(leaderboard)})
+    payload = {'success': True, 'leaderboard': leaderboard, 'count': len(leaderboard)}
+    set_cached(cache_key, payload, ttl_seconds=CHAMPS_CACHE_TTL)
+    return jsonify(payload)
 
 
 @bp.route('/champs/team-goal', methods=['GET'])
 def get_champs_team_goal():
     """Return active team goal. Weekly goals: target = previous week's count (100%), current = this week so far."""
+    cache_key = 'champs_team_goal'
+    cached = get_cached(cache_key)
+    if cached is not None:
+        return jsonify(cached)
     goal = TeamGoal.query.filter_by(is_active=True).order_by(TeamGoal.updated_at.desc()).first()
     if not goal:
-        return jsonify({'success': True, 'goal': None})
+        out = {'success': True, 'goal': None}
+        set_cached(cache_key, out, ttl_seconds=CHAMPS_CACHE_TTL)
+        return jsonify(out)
     today = date.today()
     if goal.period == 'weekly':
         this_week_start = _week_start(today)
@@ -269,7 +284,7 @@ def get_champs_team_goal():
             _log_champs_event('goal_progress', user_id=None, payload={
                 'goal_id': goal.id, 'title': goal.title, 'percent': percent, 'milestone': milestone,
             })
-    return jsonify({
+    payload = {
         'success': True,
         'goal': {
             'id': goal.id,
@@ -282,7 +297,9 @@ def get_champs_team_goal():
             'period': goal.period,
             'percent': percent,
         }
-    })
+    }
+    set_cached(cache_key, payload, ttl_seconds=CHAMPS_CACHE_TTL)
+    return jsonify(payload)
 
 
 @bp.route('/champs/team-goal', methods=['POST'])

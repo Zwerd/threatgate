@@ -121,6 +121,8 @@
     "info_csv_title": "פורמט CSV",
     "info_csv_desc": "CSV סטנדרטי. סורק כל תא לאיתור IOCs. מזהה אוטומטית עמודות מספר כרטיס / מזהה דוח. אידאלי לקליטת דוחות המונית.",
     "comment_all_placeholder": "הערה לכולם",
+    "tags_for_all": "תגים (לכולם)",
+    "tags_placeholder": "למשל malware, phishing",
     "already_exists": "IOC זה כבר קיים במערכת. האישור מושבת.",
     "staging_col": {
       "ioc": "IOC",
@@ -369,6 +371,8 @@
   "history": {
     "empty": "אין היסטוריה רשומה עבור IOC זה.",
     "by": "על ידי",
+    "entered_by": "הוזן על ידי",
+    "assigned_to": "שויך ל",
     "to": "→",
     "created": "נוצר",
     "edited": "עודכן",
@@ -420,7 +424,12 @@
     "no_outgoing": "אין IOCs יוצאים בחלון הזמן.",
     "no_incoming": "אין IOCs נכנסים בחלון הזמן.",
     "anomaly_title": "בדיקת שפיות - זוהו חריגות",
-    "feed_catalog": "קטלוג פידים"
+    "feed_catalog": "קטלוג פידים",
+    "allowlist_btn": "רשימת היתר",
+    "allowlist_title": "רשימת היתר (צפייה בלבד)",
+    "allowlist_hint": "התוכן מנוהל על ידי האדמין. שורות שמתחילות ב-# הן הערות.",
+    "allowlist_empty": "(ריק)",
+    "loading": "טוען..."
   },
   "feed_catalog": {
     "title": "נקודות קצה זמינות לפידים",
@@ -435,8 +444,30 @@
     "cisco_esa_desc": "רשימת אימיילים מופרדת בפסיקים עבור Cisco Email Security Appliance.",
     "trellix_epo": "Trellix ePO",
     "trellix_epo_desc": "פידי Hash בפורמט CSV מקובצים לפי Ticket ID עבור Trellix ePO.",
+    "stix": "TAXII / STIX 2.x",
+    "stix_desc": "חבילת STIX 2.1 ב-JSON של אינדיקטורים. לשימוש עם לקוחות TAXII או כלי הצורכים פורמט STIX.",
+    "stix_short": "אינדיקטורי STIX 2.1 דרך TAXII 2.1 או כחבילת JSON. כל ציוד שתומך ב-TAXII (למשל Cisco IronPort ESA, ThreatConnect) יכול להשתמש בכתובת Discovery; מומלץ HTTPS.",
+    "stix_ironport": "עבור Cisco IronPort / ESA (External Threat Feed): הגדר את כתובת שרת TAXII ל-Discovery endpoint הזה (מומלץ HTTPS).",
+    "stix_discovery": "Discovery",
+    "stix_all": "כל הסוגים (חבילת JSON)",
+    "open_taxii_catalog": "פתח קטלוג TAXII",
     "yara": "חוקי YARA",
     "yara_desc": "רשימה והורדה של קבצי חוקי YARA מאושרים לשילוב עם EDR / Sandbox."
+  },
+  "taxii_catalog": {
+    "title": "נקודות קצה שרת TAXII 2.1",
+    "description": "ZIoCHub חושף IOCs פעילים כאינדיקטורי STIX 2.1 דרך TAXII 2.1. השתמש בכתובות אלו בלקוחות TAXII (למשל Cisco IronPort ESA, ThreatConnect). שלח Accept: application/taxii+json;version=2.1.",
+    "btn": "קטלוג TAXII",
+    "server_info": "מידע שרת",
+    "discovery": "Discovery",
+    "api_root": "API Root",
+    "collections": "אוספים",
+    "objects": "אובייקטים ומניפסט",
+    "get_objects": "Get Objects (עם דפדוף)",
+    "manifest": "Get Manifests",
+    "get_object": "Get an Object",
+    "versions": "Get Object Versions",
+    "ironport_hint": "עבור לקוחות TAXII (למשל Cisco IronPort ESA): הגדר את כתובת השרת או הפיד ל-Discovery endpoint למעלה. השתמש ב-HTTPS בפרודקשן."
   },
   "playbook": {
     "title": "מדריך הציד",

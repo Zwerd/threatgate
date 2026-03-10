@@ -159,10 +159,8 @@ function updateAuthUI() {
             if (authState.is_admin) adminEl.classList.remove('hidden');
             else adminEl.classList.add('hidden');
         }
-        const feedPulseAllowlistLink = document.getElementById('feedPulseAllowlistLink');
-        if (feedPulseAllowlistLink) {
-            feedPulseAllowlistLink.classList.toggle('hidden', !authState.is_admin);
-        }
+        const feedPulseAllowlistBtn = document.getElementById('feedPulseAllowlistBtn');
+        if (feedPulseAllowlistBtn) feedPulseAllowlistBtn.classList.remove('hidden');
         const playbookAdminActions = document.getElementById('playbookAdminActions');
         if (playbookAdminActions) {
             if (authState.is_admin) playbookAdminActions.classList.remove('hidden');
@@ -182,8 +180,8 @@ function updateAuthUI() {
         if (adminEl) adminEl.classList.add('hidden');
         const yaraMyPendingSection = document.getElementById('yaraMyPendingSection');
         if (yaraMyPendingSection) yaraMyPendingSection.classList.add('hidden');
-        const feedPulseAllowlistLink = document.getElementById('feedPulseAllowlistLink');
-        if (feedPulseAllowlistLink) feedPulseAllowlistLink.classList.add('hidden');
+        const feedPulseAllowlistBtn = document.getElementById('feedPulseAllowlistBtn');
+        if (feedPulseAllowlistBtn) feedPulseAllowlistBtn.classList.add('hidden');
     }
 }
 
@@ -330,6 +328,18 @@ async function switchTab(tabId, skipHash) {
 
     const activeTab = document.getElementById(`tab-${tabId}`);
     if (activeTab) activeTab.classList.remove('hidden');
+
+    // Show loading state immediately for heavy tabs (Champs / Reports) before scripts run
+    var loadingText = (typeof window.t === 'function' ? (window.t('champs.loading') || window.t('reports.loading')) : null) || 'Loading...';
+    var loadingHtml = '<div class="flex flex-col items-center justify-center py-12 gap-3"><div class="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin"></div><span class="text-secondary text-sm">' + loadingText + '</span></div>';
+    if (tabId === 'champs') {
+        var listEl = document.getElementById('champsLadderList');
+        if (listEl) listEl.innerHTML = loadingHtml;
+    }
+    if (tabId === 'reports') {
+        var listElR = document.getElementById('reportsList');
+        if (listElR) listElR.innerHTML = loadingHtml;
+    }
 
     if (statsPollInterval) {
         clearInterval(statsPollInterval);
@@ -597,6 +607,30 @@ initApp();
     if (closeBtn) closeBtn.addEventListener('click', hide);
     if (closeBtnBottom) closeBtnBottom.addEventListener('click', hide);
     modal.addEventListener('click', (e) => { if (e.target === modal) hide(); });
+    const openTaxiiBtn = document.getElementById('feedCatalogOpenTaxiiCatalog');
+    if (openTaxiiBtn) {
+        openTaxiiBtn.addEventListener('click', () => {
+            hide();
+            const taxiiModal = document.getElementById('taxiiCatalogModal');
+            if (taxiiModal) taxiiModal.classList.remove('hidden');
+        });
+    }
+})();
+
+// ---------------------------------------------------------------------------
+// TAXII Catalog modal
+// ---------------------------------------------------------------------------
+(function () {
+    const modal = document.getElementById('taxiiCatalogModal');
+    const openBtn = document.getElementById('taxiiCatalogBtn');
+    const closeBtn = document.getElementById('taxiiCatalogClose');
+    const closeBtnBottom = document.getElementById('taxiiCatalogCloseBottom');
+    if (!modal) return;
+    const hide = () => modal.classList.add('hidden');
+    if (openBtn) openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+    if (closeBtn) closeBtn.addEventListener('click', hide);
+    if (closeBtnBottom) closeBtnBottom.addEventListener('click', hide);
+    modal.addEventListener('click', (e) => { if (e.target === modal) hide(); });
 })();
 
 // ---------------------------------------------------------------------------
@@ -604,7 +638,7 @@ initApp();
 // ---------------------------------------------------------------------------
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        ['editModal', 'deleteIocModal', 'yaraConfirmModal', 'yaraPreviewModal', 'yaraEditModal', 'campaignEditModal', 'yaraMetaEditModal', 'addNoteModal'].forEach(id => {
+        ['editModal', 'deleteIocModal', 'yaraConfirmModal', 'yaraPreviewModal', 'yaraEditModal', 'campaignEditModal', 'yaraMetaEditModal', 'addNoteModal', 'feedCatalogModal', 'taxiiCatalogModal'].forEach(id => {
             const m = document.getElementById(id);
             if (m && !m.classList.contains('hidden')) m.classList.add('hidden');
         });

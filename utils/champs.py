@@ -120,25 +120,46 @@ SMART_COMMENT_MIN_LEN = 10
 SMART_DUPLICATE_THRESHOLD = 3
 
 
-def _compute_smart_ioc_points(method, comment, campaign_id, analyst_key, day, comment_counts):
+def _compute_smart_ioc_points(method, comment, campaign_id, analyst_key, day, comment_counts, tag_count=0):
     """
     Smart Effort (#8) IOC scoring.
     Single submit: 2 base. Bulk: 1 base.
-    +1 for meaningful comment (>10 chars, not duplicated 3+ times in same batch/day).
+    Comment bonus (if not duplicated 3+ times in same batch/day):
+      - <10 chars: 0
+      - 10–99 chars: +1
+      - 100–299 chars: +2
+      - >=300 chars: +3
     +1 for campaign link.
-    Range: 1 (lazy bulk) to 4 (single + unique comment + campaign).
+    Tag bonus (bulk): same tag for all = 1 pt base only; more distinct tags = more points:
+      - 0–1 tag: 0 bonus
+      - 2 tags: +1
+      - 3+ tags: +2
+    Range: 1 (lazy bulk) up to ~8 (single + long comment + campaign + tags).
     """
     is_bulk = method in ('csv', 'txt', 'paste', 'import')
     pts = 1 if is_bulk else IOC_DEFAULT
-    has_comment = len(comment) >= SMART_COMMENT_MIN_LEN
-    if has_comment:
+    comment = (comment or '').strip()
+    if comment:
+        length = len(comment)
         is_dup = False
         if is_bulk and day:
             key = analyst_key + '|' + str(day)
             is_dup = comment_counts.get(key, {}).get(comment, 0) >= SMART_DUPLICATE_THRESHOLD
         if not is_dup:
-            pts += 1
+            bonus = 0
+            if length >= SMART_COMMENT_MIN_LEN:
+                if length < 100:
+                    bonus = 1
+                elif length < 300:
+                    bonus = 2
+                else:
+                    bonus = 3
+            pts += bonus
     if campaign_id:
+        pts += 1
+    if tag_count >= 3:
+        pts += 2
+    elif tag_count >= 2:
         pts += 1
     return pts
 
@@ -162,6 +183,22 @@ def _build_smart_comment_counts(ioc_rows):
     return counts
 
 
+def _tag_count_from_row(r):
+    """Return number of distinct tags for an IOC row (for Smart Effort bonus)."""
+    raw = r.get('tags')
+    if not raw:
+        return 0
+    if isinstance(raw, list):
+        return len([t for t in raw if (t or '').strip()])
+    if isinstance(raw, str):
+        try:
+            arr = json.loads(raw)
+            return len([t for t in arr if isinstance(t, str) and t.strip()])
+        except (TypeError, ValueError):
+            return 0
+    return 0
+
+
 def _score_ioc_rows(ioc_rows, scoring_method, comment_counts=None):
     """
     Score a list of IOC row dicts. Returns list of (analyst, date, points, user_id) tuples.
@@ -175,7 +212,8 @@ def _score_ioc_rows(ioc_rows, scoring_method, comment_counts=None):
         if smart:
             comment = (r.get('comment') or '').strip()
             method = r.get('submission_method') or 'single'
-            pts = _compute_smart_ioc_points(method, comment, r.get('campaign_id'), analyst, d, comment_counts or {})
+            tag_count = _tag_count_from_row(r)
+            pts = _compute_smart_ioc_points(method, comment, r.get('campaign_id'), analyst, d, comment_counts or {}, tag_count=tag_count)
         else:
             pts = compute_ioc_points(r.get('type'), r.get('campaign_id'))
         results.append((analyst, d, pts, r.get('user_id')))
@@ -241,7 +279,7 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
     smart = scoring_method == SCORING_SMART
     ioc_cols = [IOC.analyst, IOC.type, IOC.campaign_id, IOC.user_id, IOC.created_at]
     if smart:
-        ioc_cols += [IOC.comment, IOC.submission_method]
+        ioc_cols += [IOC.comment, IOC.submission_method, IOC.tags]
     ioc_q = db.session.query(*ioc_cols)
     if start_dt is not None:
         ioc_q = ioc_q.filter(IOC.created_at >= start_dt)
@@ -250,7 +288,7 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
     raw_rows = ioc_q.all()
     col_names = ['analyst', 'type', 'campaign_id', 'user_id', 'created_at']
     if smart:
-        col_names += ['comment', 'submission_method']
+        col_names += ['comment', 'submission_method', 'tags']
     ioc_dicts = [dict(zip(col_names, r)) for r in raw_rows]
 
     # Resolve analyst via user_id -> username mapping
@@ -285,11 +323,14 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
         analyst_last[a] = max(analyst_last.get(a, d), d) if analyst_last.get(a) else d
         analyst_yara[a] = analyst_yara[a] + 1
 
-    # Deletion points (ActivityEvent: ioc_deletion)
-    # - Display count (deletion_count): all deletions
-    # - Score points: only expired IOCs (cleanup/hygiene)
-    # - Badges (clean_slate, janitor, etc.): only expired
+    # Deletion and activity points (ActivityEvent)
+    # - ioc_deletion: points only for expired IOCs (cleanup/hygiene)
+    # - ioc_note_add (Smart Effort only): reward rich, non-trivial notes
+    # - ioc_campaign_link (Smart Effort only): reward linking IOCs to campaigns (first link)
     if ActivityEvent:
+        users = {u.id: u.username.lower() for u in User.query.all() if u.username}
+
+        # Deletions
         del_q = db.session.query(
             ActivityEvent.user_id,
             ActivityEvent.payload,
@@ -300,7 +341,6 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
         if end_dt is not None:
             del_q = del_q.filter(ActivityEvent.created_at <= end_dt)
         del_rows = del_q.all()
-        users = {u.id: u.username.lower() for u in User.query.all() if u.username}
         for uid, payload, created_at in del_rows:
             try:
                 p = json.loads(payload or '{}')
@@ -317,6 +357,51 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
                     analyst_last[a] = max(analyst_last.get(a, d), d) if analyst_last.get(a) else d
             if uid:
                 analyst_user_id[a] = uid
+
+        # Smart Effort only: reward rich notes and campaign links as separate actions
+        if smart:
+            evt_q = db.session.query(
+                ActivityEvent.user_id,
+                ActivityEvent.event_type,
+                ActivityEvent.payload,
+                ActivityEvent.created_at,
+            ).filter(ActivityEvent.event_type.in_(['ioc_note_add', 'ioc_campaign_link']))
+            if start_dt is not None:
+                evt_q = evt_q.filter(ActivityEvent.created_at >= start_dt)
+            if end_dt is not None:
+                evt_q = evt_q.filter(ActivityEvent.created_at <= end_dt)
+            evt_rows = evt_q.all()
+            for uid, event_type, payload, created_at in evt_rows:
+                a = users.get(uid, 'unknown')
+                d = _to_date(created_at)
+                try:
+                    p = json.loads(payload or '{}')
+                except (json.JSONDecodeError, TypeError):
+                    p = {}
+
+                pts_extra = 0
+                if event_type == 'ioc_note_add':
+                    length = int(p.get('length') or 0)
+                    if length >= SMART_COMMENT_MIN_LEN:
+                        if length < 100:
+                            pts_extra = 1
+                        elif length < 300:
+                            pts_extra = 2
+                        else:
+                            pts_extra = 3
+                    else:
+                        pts_extra = 1  # minimal effort still counts
+                elif event_type == 'ioc_campaign_link':
+                    # Give at least 1 point when IOC is linked to a campaign for the first time
+                    had_campaign = bool(p.get('had_campaign'))
+                    if not had_campaign:
+                        pts_extra = 1
+
+                if pts_extra and d:
+                    analyst_daily[a][d] = analyst_daily[a].get(d, 0) + pts_extra
+                    analyst_last[a] = max(analyst_last.get(a, d), d) if analyst_last.get(a) else d
+                if uid:
+                    analyst_user_id[a] = uid
 
     # Map analyst -> user_id
     if user_id_map is None:

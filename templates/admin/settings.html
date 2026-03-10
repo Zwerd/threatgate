@@ -172,6 +172,15 @@
             </div>
         </form>
         <div id="mispMessage" class="mt-4 hidden text-sm"></div>
+
+        <div class="mt-6 pt-6 border-t border-white/10">
+            <h4 class="text-sm font-semibold text-secondary mb-2">MISP operation log</h4>
+            <p class="text-secondary text-xs mb-3">Live output from Test Connection or Sync Now. Run an action to see step-by-step details.</p>
+            <div id="mispLog" class="mt-3 hidden rounded-lg border border-white/10 bg-black/30 p-4 font-mono text-xs overflow-x-auto overflow-y-auto max-h-64">
+                <div id="mispLogContent" class="space-y-1 whitespace-pre-wrap"></div>
+            </div>
+            <div id="mispSpinner" class="mt-2 hidden text-amber-400 text-sm">Running...</div>
+        </div>
         {% if settings.misp_last_sync %}
         <div class="mt-4 text-xs text-secondary border-t border-white/5 pt-3">
             <span class="font-semibold">Last sync:</span> {{ settings.misp_last_sync }}
@@ -418,7 +427,52 @@ document.getElementById('mispForm').addEventListener('submit', async function(e)
         showMispMsg('Network error.', false);
     }
 });
+function renderMispLog(steps, addedSamples, invalidSamples) {
+    var logEl = document.getElementById('mispLog');
+    var contentEl = document.getElementById('mispLogContent');
+    var parts = [];
+    if (steps && steps.length) {
+        parts.push(steps.map(function(s) {
+            var icon = s.status === 'ok' ? '\u2713' : (s.status === 'fail' ? '\u2717' : '?');
+            var color = s.status === 'ok' ? 'text-green-400' : (s.status === 'fail' ? 'text-red-400' : 'text-secondary');
+            var msg = s.message ? ' \u2014 ' + s.message : '';
+            return '<div class="' + color + '">[' + icon + '] ' + s.step + msg + '</div>';
+        }).join(''));
+    }
+    if (addedSamples && addedSamples.length > 0) {
+        parts.push('<div class="mt-3 pt-2 border-t border-white/10 text-cyan-300 font-semibold">New IOCs added (showing up to 100):</div>');
+        addedSamples.forEach(function(item) {
+            var type = (item.type || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var value = (item.value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            parts.push('<div class="text-sm mt-0.5">' + type + ': <span class="text-white/90">' + value + '</span></div>');
+        });
+    }
+    if (invalidSamples && invalidSamples.length > 0) {
+        parts.push('<div class="mt-3 pt-2 border-t border-white/10 text-amber-300 font-semibold">Invalid (skipped by validation, showing up to 30):</div>');
+        parts.push('<div class="text-xs text-secondary mt-0.5">Domain must have a dot and TLD; URL must start with http(s)/ftp; Email must be user@domain.tld; Hash must be 32/40/64/128 hex.</div>');
+        invalidSamples.forEach(function(item) {
+            var type = (item.type || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var value = (item.value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            parts.push('<div class="text-sm mt-0.5 text-amber-200/90">' + type + ': <span class="text-white/70">' + value + '</span></div>');
+        });
+    }
+    if (parts.length === 0) {
+        contentEl.innerHTML = '<div class="text-secondary">No steps returned.</div>';
+    } else {
+        contentEl.innerHTML = parts.join('');
+    }
+    logEl.classList.remove('hidden');
+}
+
 document.getElementById('mispTestBtn').addEventListener('click', async function() {
+    var logEl = document.getElementById('mispLog');
+    var contentEl = document.getElementById('mispLogContent');
+    var spinnerEl = document.getElementById('mispSpinner');
+    var btn = this;
+    logEl.classList.add('hidden');
+    contentEl.innerHTML = '';
+    spinnerEl.classList.remove('hidden');
+    btn.disabled = true;
     showMispMsg('Testing connection...', true);
     document.getElementById('mispMessage').classList.remove('text-green-400');
     document.getElementById('mispMessage').classList.add('text-yellow-400');
@@ -433,28 +487,63 @@ document.getElementById('mispTestBtn').addEventListener('click', async function(
             })
         });
         var data = await res.json();
-        showMispMsg(data.message || (data.success ? 'Connected!' : 'Failed'), data.success);
+        spinnerEl.classList.add('hidden');
+        if (data && data.data && data.data.steps && data.data.steps.length) {
+            renderMispLog(data.data.steps, data.data.added_samples, data.data.invalid_samples);
+        } else {
+            contentEl.innerHTML = '<div class="text-red-400">' + (data.message || 'No steps returned.') + '</div>';
+            logEl.classList.remove('hidden');
+        }
+        showMispMsg(data.message || (data.success ? 'Connected!' : 'Check log above.'), data.success);
     } catch (err) {
+        spinnerEl.classList.add('hidden');
+        contentEl.innerHTML = '<div class="text-red-400">Network error: ' + (err.message || 'Failed') + '</div>';
+        logEl.classList.remove('hidden');
         showMispMsg('Network error.', false);
     }
+    btn.disabled = false;
 });
 document.getElementById('mispSyncBtn').addEventListener('click', async function() {
     if (typeof appConfirm !== 'function') { if (!confirm('Run MISP sync now?')) return; }
     else { var ok = await appConfirm({ title: 'MISP Sync', message: 'Run MISP sync now? New IOCs will be imported.', okText: 'Run Sync' }); if (!ok) return; }
+    var logEl = document.getElementById('mispLog');
+    var contentEl = document.getElementById('mispLogContent');
+    var spinnerEl = document.getElementById('mispSpinner');
+    var btn = this;
+    logEl.classList.add('hidden');
+    contentEl.innerHTML = '';
+    spinnerEl.classList.remove('hidden');
+    btn.disabled = true;
     showMispMsg('Syncing...', true);
     document.getElementById('mispMessage').classList.remove('text-green-400');
     document.getElementById('mispMessage').classList.add('text-yellow-400');
     try {
         var res = await fetch('/api/admin/misp/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
         var data = await res.json();
+        spinnerEl.classList.add('hidden');
+        if (data && data.data && data.data.steps && data.data.steps.length) {
+            renderMispLog(data.data.steps, data.data.added_samples, data.data.invalid_samples);
+        } else if (data && data.data && (data.data.added !== undefined || data.data.error)) {
+            var steps = [
+                { step: 'Sync result', status: data.success ? 'ok' : 'fail', message: data.message || data.data.error || 'Unknown' }
+            ];
+            renderMispLog(steps, data.data.added_samples, data.data.invalid_samples);
+        } else {
+            contentEl.innerHTML = '<div class="' + (data.success ? 'text-green-400' : 'text-red-400') + '">' + (data.message || 'No log.') + '</div>';
+            logEl.classList.remove('hidden');
+        }
         var msg = data.message || (data.success ? 'Sync complete.' : 'Sync failed.');
         if (data.data && data.data.added !== undefined) {
-            msg += ' (added: ' + data.data.added + ', skipped: ' + data.data.skipped + ', errors: ' + data.data.errors + ')';
+            msg += ' (added: ' + data.data.added + ', skipped: ' + data.data.skipped + ', errors: ' + (data.data.errors || 0) + ')';
         }
         showMispMsg(msg, data.success);
     } catch (err) {
+        spinnerEl.classList.add('hidden');
+        contentEl.innerHTML = '<div class="text-red-400">Network error: ' + (err.message || 'Failed') + '</div>';
+        logEl.classList.remove('hidden');
         showMispMsg('Network error.', false);
     }
+    btn.disabled = false;
 });
 
 /* ---------- Logs tab: fetch last 50 lines ---------- */

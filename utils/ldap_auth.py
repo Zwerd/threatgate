@@ -32,6 +32,12 @@ def is_dev_mode() -> bool:
     return _is_dev_mode()
 
 
+def is_production_env() -> bool:
+    """True when environment is explicitly set to production (AppSec: warn if DEV_MODE is on)."""
+    env = (os.environ.get('FLASK_ENV', '') or os.environ.get('ZIOCHUB_ENV', '')).strip().lower()
+    return env == 'production'
+
+
 def try_ldap_bind(
     ldap_url: str,
     base_dn: str,

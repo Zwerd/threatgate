@@ -103,10 +103,22 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + _db_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['DATA_YARA'] = DATA_YARA
 app.config['DATA_YARA_PENDING'] = DATA_YARA_PENDING
+# Session cookie security (AppSec step 1). HttpOnly reduces XSS risk; SameSite/Secure optional to avoid breaking login.
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+# SameSite: unset = browser default (often Lax). Set to 'Lax' only if login works; 'Strict' can break redirects after login.
+_session_samesite = os.environ.get('ZIOCHUB_SESSION_COOKIE_SAMESITE', '').strip() or None
+if _session_samesite and _session_samesite.lower() in ('lax', 'strict', 'none'):
+    app.config['SESSION_COOKIE_SAMESITE'] = _session_samesite.capitalize() if _session_samesite.lower() != 'none' else None
+# SESSION_COOKIE_SECURE: set to True only when served over HTTPS; if True over HTTP, login will not persist.
+_session_secure = os.environ.get('ZIOCHUB_SESSION_COOKIE_SECURE', '').strip().lower() in ('1', 'true', 'yes')
+if _config and getattr(_config, 'SESSION_COOKIE_SECURE', None) is not None:
+    _session_secure = bool(getattr(_config, 'SESSION_COOKIE_SECURE'))
+app.config['SESSION_COOKIE_SECURE'] = _session_secure
 db.init_app(app)
 
 # --- Blueprints ---
 from routes.feeds import bp as feeds_bp
+from routes.taxii_server import bp as taxii2_bp
 from routes.admin import bp as admin_bp, pages_bp as admin_pages_bp
 from routes.yara import bp as yara_bp
 from routes.campaigns import bp as campaigns_bp
@@ -117,6 +129,7 @@ from routes.stats import stats_bp
 from routes.ioc import bp as ioc_bp
 from routes.reports import reports_bp
 app.register_blueprint(feeds_bp)
+app.register_blueprint(taxii2_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(admin_pages_bp)
 app.register_blueprint(yara_bp)
@@ -353,7 +366,20 @@ from utils.sanity_checks import (
 )
 from utils.auth import hash_password, verify_password
 from utils.decorators import login_required, admin_required
-from utils.ldap_auth import try_ldap_bind, try_ldap_mock_dev, check_ldap_reachable, is_dev_mode
+from utils.ldap_auth import try_ldap_bind, try_ldap_mock_dev, check_ldap_reachable, is_dev_mode, is_production_env
+
+# AppSec step 2: document and warn when DEV_MODE is enabled; strong warning when production env is detected
+if is_dev_mode():
+    logging.warning(
+        'DEV_MODE is enabled. Do not use in production. '
+        'Disable by unsetting DEV_MODE or set DEV_MODE=0 (or false).'
+    )
+    if is_production_env():
+        logging.error(
+            'SECURITY: DEV_MODE is enabled but environment is set to production '
+            '(FLASK_ENV=production or ZIOCHUB_ENV=production). Disable DEV_MODE in production.'
+        )
+
 from utils.champs import (
     compute_analyst_scores,
     compute_yara_quality_points,

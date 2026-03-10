@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """
-ZIoCHub - Lab Users Setup Script
-=================================
-Creates the lab analyst team from users/users.json.
+ZIoCHub - Lab / Production Users Setup Script
+=============================================
+Creates users from users/users.json (lab or production).
 Prompts for a single password that will be set for ALL users.
+The script writes directly to the SQLite database — it does not use HTTP or port.
 
 Usage:
-    python create_lab_users.py                # interactive - asks for password
-    python create_lab_users.py --password P@ss  # non-interactive
+    python create_lab_users.py --help              # show all options
+    python create_lab_users.py                     # interactive, current dir (dev)
+    python create_lab_users.py --env dev           # same: use script dir as base (port 5000 dev)
+    python create_lab_users.py --env prod          # production: use /opt/ziochub (port 8443)
+    python create_lab_users.py --password P@ss     # non-interactive
+    python create_lab_users.py --env prod -p P@ss  # production, non-interactive
+
+  Dev (port 5000):  run from project root, or use --env dev. Uses ./data/ziochub.db.
+  Prod (port 8443): run from /opt/ziochub, or use --env prod. Uses /opt/ziochub/data/ziochub.db.
 
 Users are defined in users/users.json. Each user can have:
   - username, display_name, is_admin
@@ -34,9 +42,9 @@ try:
 except ImportError:
     _config = None
 
-# --- resolve paths (same logic as app.py) ---
+# --- resolve paths (same logic as app.py); overridden in main() when --env prod ---
 _base_dir = os.path.dirname(os.path.abspath(__file__))
-_data_dir = (_config and _config.DATA_DIR) or os.path.join(_base_dir, 'data')
+_data_dir = (_config and getattr(_config, 'DATA_DIR', None)) or os.path.join(_base_dir, 'data')
 _db_path = (_config and getattr(_config, 'DB_PATH', None)) or os.path.join(_data_dir, 'ziochub.db')
 _users_dir = os.path.join(_base_dir, 'users')
 _users_json = os.path.join(_users_dir, 'users.json')
@@ -130,7 +138,7 @@ def create_users(db_path, password, users_list):
     ).fetchone()
     if admin_row:
         conn.execute(
-            "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+            "UPDATE users SET password_hash = ?, source = 'local', must_change_password = 0, updated_at = ? WHERE id = ?",
             (pw_hash, now, admin_row[0]),
         )
         updated += 1
@@ -179,7 +187,7 @@ def create_users(db_path, password, users_list):
         if row:
             user_id = row[0]
             conn.execute(
-                "UPDATE users SET password_hash = ?, is_admin = ?, is_active = 1, updated_at = ? WHERE id = ?",
+                "UPDATE users SET password_hash = ?, source = 'local', is_admin = ?, is_active = 1, must_change_password = 0, updated_at = ? WHERE id = ?",
                 (pw_hash, int(is_admin), now, user_id),
             )
             avatar_path = copy_avatar_to_static(image, user_id, username)
@@ -200,8 +208,8 @@ def create_users(db_path, password, users_list):
             print(f"  {c('~', 'yellow')} {username:<12} {display_name:<22} {'Admin' if is_admin else '-':<6}  (updated)")
         else:
             conn.execute(
-                "INSERT INTO users (username, password_hash, source, is_admin, is_active, created_at, updated_at) "
-                "VALUES (?, ?, 'local', ?, 1, ?, ?)",
+                "INSERT INTO users (username, password_hash, source, is_admin, is_active, must_change_password, created_at, updated_at) "
+                "VALUES (?, ?, 'local', ?, 1, 0, ?, ?)",
                 (username, pw_hash, int(is_admin), now, now),
             )
             user_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -219,11 +227,23 @@ def create_users(db_path, password, users_list):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ZIoCHub - Create lab users from users/users.json')
+    global _base_dir, _data_dir, _db_path, _users_dir, _users_json, _avatars_dir
+    parser = argparse.ArgumentParser(description='ZIoCHub - Create lab/production users from users/users.json')
     parser.add_argument('--password', '-p', help='Password for all users (prompted if omitted)')
+    parser.add_argument('--env', choices=('dev', 'prod'), default='dev',
+                        help='dev = script directory and ./data (port 5000); prod = /opt/ziochub (port 8443). Default: dev')
     args = parser.parse_args()
 
+    if args.env == 'prod':
+        _base_dir = '/opt/ziochub'
+        _data_dir = os.path.join(_base_dir, 'data')
+        _db_path = os.path.join(_data_dir, 'ziochub.db')
+        _users_dir = os.path.join(_base_dir, 'users')
+        _users_json = os.path.join(_users_dir, 'users.json')
+        _avatars_dir = os.path.join(_base_dir, 'static', 'avatars')
+
     print(f"\n{c('=== ZIoCHub Lab Users Setup ===', 'bold')}")
+    print(f"  Env:      {args.env} ({'production / port 8443' if args.env == 'prod' else 'development / port 5000'})")
     print(f"  Database: {_db_path}")
     print(f"  Users:    {_users_json}")
 
@@ -234,8 +254,11 @@ def main():
 
     users_list = load_users_from_json()
     if users_list is None:
-        print(f"\n  {c('ERROR:', 'red')} users/users.json not found.")
-        print(f"  Create users/users.json with your lab users (see users/README.md).")
+        print(f"\n  {c('ERROR:', 'red')} users/users.json not found at {_users_json}")
+        if args.env == 'prod':
+            print(f"  For production, create /opt/ziochub/users/ and add users.json there (or copy from dev).")
+        else:
+            print(f"  Create users/users.json with your lab users (see users/README.md).")
         sys.exit(1)
 
     password = args.password

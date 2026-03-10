@@ -6,11 +6,12 @@ from __future__ import annotations
 import re
 
 # Strict regex patterns for validation
-# URL: http(s), ftp, sftp with path/query; Domain: hostname only
+# URL: http(s), ftp, sftp with path/query; Domain: hostname only (must contain a dot + TLD)
+# Hash: MD5(32), SHA1(40), SHA256(64), SHA512(128) hex chars
 REGEX_PATTERNS = {
     'IP': r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',
     'Domain': r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$',
-    'Hash': r'^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$',
+    'Hash': r'^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$|^[a-fA-F0-9]{128}$',
     'Email': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
     'URL': r'^(?:https?|ftp|sftp)://(?:[-\w.@])+(?:\:[0-9]+)?(?:\/[^\s#?]*(?:\?[^\s#]*)?(?:\#[^\s]*)?)?$',
 }
@@ -18,7 +19,7 @@ REGEX_PATTERNS = {
 AUTO_DETECT_PATTERNS = {
     'IP': r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b',
     'Domain': r'(?<!@)\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b',
-    'Hash': r'\b[a-fA-F0-9]{32}\b|\b[a-fA-F0-9]{40}\b|\b[a-fA-F0-9]{64}\b',
+    'Hash': r'\b[a-fA-F0-9]{32}\b|\b[a-fA-F0-9]{40}\b|\b[a-fA-F0-9]{64}\b|\b[a-fA-F0-9]{128}\b',
     'Email': r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b',
     'URL': r'(?:https?|ftp|sftp)://(?:[-\w.@])+(?:\:[0-9]+)?(?:/(?:[\w/_.~&=%-])*(?:\?(?:[\w&=%.])*)?(?:\#(?:[\w.])*)?)?',
 }

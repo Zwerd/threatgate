@@ -68,6 +68,40 @@
 
     let _searchAllResults = [];
     let _searchPage = 1;
+    let _searchSortBy = null;
+    let _searchSortDir = 'asc';
+
+    function _getSortValue(result, key) {
+        const v = result[key];
+        if (key === 'tags') return Array.isArray(v) ? v.join(',') : (v || '');
+        if (key === 'date' && v) return v;
+        return (v != null && v !== '') ? String(v).toLowerCase() : '';
+    }
+
+    function _sortSearchResults() {
+        if (!_searchSortBy || !_searchAllResults.length) return;
+        const dir = _searchSortDir === 'asc' ? 1 : -1;
+        _searchAllResults.sort((a, b) => {
+            const va = _getSortValue(a, _searchSortBy);
+            const vb = _getSortValue(b, _searchSortBy);
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return 0;
+        });
+    }
+
+    function _updateSearchSortArrows() {
+        document.querySelectorAll('.search-sortable').forEach(function(th) {
+            const arrow = th.querySelector('.search-sort-arrow');
+            if (!arrow) return;
+            const key = th.getAttribute('data-sort');
+            if (key === _searchSortBy) {
+                arrow.textContent = _searchSortDir === 'asc' ? '\u25B2' : '\u25BC';
+            } else {
+                arrow.textContent = '';
+            }
+        });
+    }
 
     function _getPageSize() {
         const sel = document.getElementById('searchPageSize');
@@ -75,6 +109,7 @@
     }
 
     function _renderSearchPage() {
+        _sortSearchResults();
         const pageSize = _getPageSize();
         const totalPages = Math.max(1, Math.ceil(_searchAllResults.length / pageSize));
         if (_searchPage > totalPages) _searchPage = totalPages;
@@ -105,7 +140,20 @@
         _searchAllResults = results;
         _searchPage = 1;
         _renderSearchPage();
+        _updateSearchSortArrows();
     }
+
+    document.querySelectorAll('.search-sortable').forEach(function(th) {
+        th.addEventListener('click', function() {
+            const key = th.getAttribute('data-sort');
+            if (!key) return;
+            if (_searchSortBy === key) _searchSortDir = _searchSortDir === 'asc' ? 'desc' : 'asc';
+            else { _searchSortBy = key; _searchSortDir = 'asc'; }
+            _sortSearchResults();
+            _renderSearchPage();
+            _updateSearchSortArrows();
+        });
+    });
 
     function _renderSearchRow(result, query) {
         const isYara = result.file_type === 'YARA';
@@ -514,6 +562,12 @@
             iocHistoryList.innerHTML = events.map(ev => {
                 const atStr = ev.at ? new Date(ev.at).toLocaleString() : '';
                 const by = ev.username ? escapeHtml(ev.username) : '-';
+                let byLine = (typeof t === 'function' && t('history.by') ? t('history.by') : 'by') + ' ' + by;
+                if (ev.event_type === 'created' && ev.payload && ev.payload.entered_by != null && ev.payload.assigned_to != null) {
+                    const enteredByLabel = (typeof t === 'function' && t('history.entered_by')) ? t('history.entered_by') : 'Entered by';
+                    const assignedToLabel = (typeof t === 'function' && t('history.assigned_to')) ? t('history.assigned_to') : 'assigned to';
+                    byLine = escapeHtml(enteredByLabel) + ' <span class="font-medium">' + escapeHtml(String(ev.payload.entered_by || '')) + '</span>, ' + escapeHtml(assignedToLabel) + ' <span class="font-medium">' + escapeHtml(String(ev.payload.assigned_to || '')) + '</span>';
+                }
                 let extra = '';
                 if (ev.event_type === 'created' && ev.payload && ev.payload.expiration_date) {
                     extra = ' <span class="text-secondary">(expires: ' + escapeHtml(String(ev.payload.expiration_date).slice(0, 10)) + ')</span>';
@@ -533,7 +587,7 @@
                         return '<div class="text-cyan-200/90"><span class="font-semibold">' + escapeHtml(label) + ':</span> <span class="text-secondary line-through">' + escapeHtml(String(c.old)) + '</span> ' + escapeHtml(arrow) + ' <span class="text-green-200/90">' + escapeHtml(String(c.new)) + '</span></div>';
                     }).join('') + '</div>';
                 }
-                return '<div class="border border-white/10 rounded px-3 py-2 bg-tertiary/50"><span class="font-semibold">' + (labels[ev.event_type] || ev.event_type) + '</span> - ' + (typeof t === 'function' && t('history.by') ? t('history.by') : 'by') + ' ' + by + ' <span class="text-secondary">' + atStr + '</span>' + extra + '</div>';
+                return '<div class="border border-white/10 rounded px-3 py-2 bg-tertiary/50"><span class="font-semibold">' + (labels[ev.event_type] || ev.event_type) + '</span> - ' + byLine + ' <span class="text-secondary">' + atStr + '</span>' + extra + '</div>';
             }).join('');
         } catch (e) {
             iocHistoryList.innerHTML = '<div class="text-red-400">' + escapeHtml(e.message || 'Error loading history') + '</div>';

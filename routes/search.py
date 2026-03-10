@@ -145,7 +145,7 @@ def get_ioc_notes():
 @login_required
 def add_ioc_note():
     """Add an analyst note to an IOC (type+value)."""
-    (audit_log,) = _from_app('audit_log')
+    audit_log, _log_champs_event = _from_app('audit_log', '_log_champs_event')
     data = request.get_json(silent=True) or {}
     ioc_type = (data.get('type') or '').strip()
     value = (data.get('value') or '').strip()
@@ -164,6 +164,19 @@ def add_ioc_note():
     )
     db.session.add(note)
     db.session.commit()
+    # Champs Smart Effort: reward rich notes as separate effort events
+    try:
+        _log_champs_event(
+            'ioc_note_add',
+            user_id=current_user.id,
+            payload={
+                'type': ioc_type,
+                'value': value[:100],
+                'length': len(content),
+            },
+        )
+    except Exception:
+        pass
     content_preview = (content[:150] + '...') if len(content) > 150 else content
     audit_log('IOC_NOTE_ADD', f'type={ioc_type} value={value[:80]} comment="{content_preview}"')
     return jsonify({

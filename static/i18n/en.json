@@ -121,6 +121,8 @@
     "info_csv_title": "CSV Format",
     "info_csv_desc": "Standard CSV. Scans every cell for IOCs. Auto-detects Ticket ID / Report ID columns. Ideal for bulk report ingestion.",
     "comment_all_placeholder": "Comment for all",
+    "tags_for_all": "Tags (for all)",
+    "tags_placeholder": "e.g. malware, phishing",
     "already_exists": "This IOC already exists in the system. Approve is disabled.",
     "staging_col": {
       "ioc": "IOC",
@@ -369,6 +371,8 @@
   "history": {
     "empty": "No history recorded for this IOC.",
     "by": "by",
+    "entered_by": "Entered by",
+    "assigned_to": "assigned to",
     "to": "→",
     "created": "Created",
     "edited": "Edited",
@@ -420,7 +424,12 @@
     "no_outgoing": "No outgoing IOCs in this window.",
     "no_incoming": "No incoming IOCs in this window.",
     "anomaly_title": "Sanity Check - Anomalies Detected",
-    "feed_catalog": "Feed Catalog"
+    "feed_catalog": "Feed Catalog",
+    "allowlist_btn": "Allowlist",
+    "allowlist_title": "Allowlist (read-only)",
+    "allowlist_hint": "Content managed by Admin. Lines starting with # are comments.",
+    "allowlist_empty": "(Empty)",
+    "loading": "Loading..."
   },
   "feed_catalog": {
     "title": "Available Feed Endpoints",
@@ -435,8 +444,30 @@
     "cisco_esa_desc": "Comma-separated email list for Cisco Email Security Appliance content filters.",
     "trellix_epo": "Trellix ePO",
     "trellix_epo_desc": "CSV hash feeds grouped by Ticket ID for Trellix Endpoint Security / ePO policy import.",
+    "stix": "TAXII / STIX 2.x",
+    "stix_desc": "STIX 2.1 JSON bundle of indicators. Use with TAXII clients or any tool that consumes STIX format.",
+    "stix_short": "STIX 2.1 indicators via TAXII 2.1 or as JSON bundle. Any TAXII-capable device (e.g. Cisco IronPort ESA, ThreatConnect) can use the Discovery URL; HTTPS recommended.",
+    "stix_ironport": "For Cisco IronPort / ESA (External Threat Feed): set the TAXII server URL to this Discovery endpoint (HTTPS recommended).",
+    "stix_discovery": "Discovery",
+    "stix_all": "All types (JSON bundle)",
+    "open_taxii_catalog": "Open TAXII Catalog",
     "yara": "YARA Rules",
     "yara_desc": "List and download approved YARA rule files for EDR / sandbox integration."
+  },
+  "taxii_catalog": {
+    "title": "TAXII 2.1 Server Endpoints",
+    "description": "ZIoCHub exposes active IOCs as STIX 2.1 indicators over TAXII 2.1. Use these URLs in TAXII clients (e.g. Cisco IronPort ESA, ThreatConnect). Send Accept: application/taxii+json;version=2.1.",
+    "btn": "TAXII Catalog",
+    "server_info": "Server information",
+    "discovery": "Discovery",
+    "api_root": "API Root",
+    "collections": "Collections",
+    "objects": "Objects & manifest",
+    "get_objects": "Get Objects (paginated)",
+    "manifest": "Get Manifests",
+    "get_object": "Get an Object",
+    "versions": "Get Object Versions",
+    "ironport_hint": "For TAXII clients (e.g. Cisco IronPort ESA): set the server or feed URL to the Discovery endpoint above. Use HTTPS in production."
   },
   "playbook": {
     "title": "Hunter's Playbook",

@@ -2,7 +2,7 @@
 SQLAlchemy models for ZIoCHub. Uses db from extensions (no app import).
 """
 from datetime import datetime, timezone
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, Index
 
 from extensions import db
 
@@ -92,7 +92,13 @@ class IOC(db.Model):
     tld = db.Column(db.String(32), nullable=True)            # TLD for Domain/URL (e.g. com, org)
     email_domain = db.Column(db.String(255), nullable=True) # domain part for Email (e.g. evil.com)
     rare_find_type = db.Column(db.String(32), nullable=True) # 'country' | 'tld' | 'email_domain' when first-ever
-    __table_args__ = (UniqueConstraint('type', 'value', name='u_type_value'),)
+    __table_args__ = (
+        UniqueConstraint('type', 'value', name='u_type_value'),
+        Index('ix_iocs_created_at', 'created_at'),
+        Index('ix_iocs_expiration_date', 'expiration_date'),
+        Index('ix_iocs_campaign_id', 'campaign_id'),
+        Index('ix_iocs_analyst', 'analyst'),
+    )
 
 
 class IocHistory(db.Model):
@@ -105,6 +111,7 @@ class IocHistory(db.Model):
     username = db.Column(db.String(255), nullable=True)
     at = db.Column(db.DateTime, default=_utcnow, nullable=False)
     payload = db.Column(db.Text, nullable=True)  # JSON: e.g. {"expiration_date": "...", "comment": "..."}
+    __table_args__ = (Index('ix_ioc_history_at', 'at'), Index('ix_ioc_history_at_event_type', 'at', 'event_type'),)
 
 
 class IocNote(db.Model):
@@ -141,6 +148,7 @@ class YaraRule(db.Model):
     campaign_id = db.Column(db.Integer, db.ForeignKey('campaigns.id'), nullable=True)
     quality_points = db.Column(db.Integer, nullable=True)  # Champs: 10-50 by rule quality
     status = db.Column(db.String(32), nullable=False, default='approved')  # pending | approved | rejected
+    __table_args__ = (Index('ix_yara_rules_uploaded_at', 'uploaded_at'), Index('ix_yara_rules_uploaded_at_status', 'uploaded_at', 'status'),)
 
 
 # --- Champs Analysis 5.0 (Operational Hall of Fame) ---
@@ -170,6 +178,7 @@ class ActivityEvent(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     payload = db.Column(db.Text, nullable=True)  # JSON
     created_at = db.Column(db.DateTime, default=_utcnow)
+    __table_args__ = (Index('ix_activity_events_created_at', 'created_at'), Index('ix_activity_events_event_type', 'event_type'),)
 
 
 class ChampRankSnapshot(db.Model):
