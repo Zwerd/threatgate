@@ -6,23 +6,27 @@ ZIoCHub is a **modern IOC & YARA Management Platform** built for SOC operations.
 
 ZIoCHub is built on the following open source projects:
 
-| Project | Purpose |
-|--------|---------|
-| [Flask](https://flask.palletsprojects.com/) | Web framework |
-| [Flask-Login](https://github.com/maxcountryman/flask-login) | User session & authentication |
-| [Flask-SQLAlchemy](https://flask-sqlalchemy.palletsprojects.com/) | ORM and database integration |
-| [Werkzeug](https://werkzeug.palletsprojects.com/) | WSGI utilities |
-| [SQLite](https://www.sqlite.org/) | Embedded database |
-| [geoip2](https://github.com/maxmind/GeoIP2-python) / [MaxMind](https://www.maxmind.com/) | GeoIP lookups (optional) |
-| [ldap3](https://github.com/cannatag/ldap3) | LDAP/AD authentication (optional) |
-| [PyMISP](https://github.com/MISP/PyMISP) | MISP API integration (optional) |
-| [Tailwind CSS](https://tailwindcss.com/) | UI styling (build step) |
-| [Chart.js](https://www.chartjs.org/) | Charts and dashboards |
-| [vis-network](https://visjs.org/) | Campaign & IOC graph visualization |
-| [jsPDF](https://github.com/parallax/jsPDF) | PDF export (Reports) |
-| [html2canvas](https://html2canvas.hertzen.com/) | Screenshot for PDF export |
-| [Prism](https://prismjs.com/) | YARA syntax highlighting |
-| [Flag Icons](https://github.com/lipis/flag-icons) | Country flags in UI |
+| # | Project | Purpose |
+|---|--------|---------|
+| 1 | [Flask](https://flask.palletsprojects.com/) | Web framework |
+| 2 | [Flask-Login](https://github.com/maxcountryman/flask-login) | User session & authentication |
+| 3 | [Flask-SQLAlchemy](https://flask-sqlalchemy.palletsprojects.com/) | ORM and database integration |
+| 4 | [Werkzeug](https://werkzeug.palletsprojects.com/) | WSGI utilities |
+| 5 | [SQLite](https://www.sqlite.org/) | Embedded database |
+| 6 | [geoip2](https://github.com/maxmind/GeoIP2-python) / [MaxMind](https://www.maxmind.com/) | GeoIP lookups (optional) |
+| 7 | [maxminddb](https://github.com/maxmind/MaxMind-DB-Reader-python) | MaxMind DB reader (optional, used with geoip2) |
+| 8 | [ldap3](https://github.com/cannatag/ldap3) | LDAP/AD authentication (optional) |
+| 9 | [PyMISP](https://github.com/MISP/PyMISP) | MISP API integration (optional) |
+| 10 | [dxlclient](https://github.com/opendxl/opendxl-client-python) / [dxltieclient](https://github.com/opendxl/opendxl-tie-client-python) | McAfee DXL/TIE – ePO hash reputation (optional) |
+| 11 | [Tailwind CSS](https://tailwindcss.com/) | UI styling (build step) |
+| 12 | [Chart.js](https://www.chartjs.org/) | Charts and dashboards |
+| 13 | [vis-network](https://visjs.org/) (vis.js) | Campaign & IOC graph visualization |
+| 14 | [marked](https://github.com/markedjs/marked) | Markdown parsing (Reports, Playbook) |
+| 15 | [turndown](https://github.com/domchristie/turndown) | HTML-to-Markdown conversion |
+| 16 | [jsPDF](https://github.com/parallax/jsPDF) | PDF export (Reports) |
+| 17 | [html2canvas](https://html2canvas.hertzen.com/) | Screenshot for PDF export |
+| 18 | [Prism](https://prismjs.com/) | YARA syntax highlighting |
+| 19 | [Flag Icons](https://github.com/lipis/flag-icons) | Country flags in UI |
 
 ---
 
