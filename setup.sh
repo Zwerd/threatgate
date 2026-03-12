@@ -12,11 +12,11 @@
 #    sudo ./setup.sh --help       # Full help with steps and paths
 #
 #  Installs to /opt/ziochub with data in /opt/ziochub/data/
-#  Creates systemd services for the app, HTTP redirect, cleaner, backup, MISP.
+#  Creates systemd services for the app, cleaner, backup, MISP.
 #  Auto-generates a self-signed SSL certificate if openssl is available.
-#  HTTPS port: 8443 (default), 443, or custom — chosen at install; stored in data/ziochub.env.
+#  HTTPS port: 8443 (default), or 443 / custom. Port 443 requires setcap; see security note in installer.
 #
-#  Updated: 2025-03
+#  Updated: 2025-03-11
 # ============================================================================
 set -euo pipefail
 
@@ -54,17 +54,16 @@ show_help() {
     echo "  4. Creates Python venv and installs dependencies"
     echo "  5. Initializes the SQLite database"
     echo "  6. Generates a self-signed SSL certificate (requires openssl)"
-    echo "  7. Asks which HTTPS port to use (8443 default, 443, or custom)"
-    echo "  8. Installs and enables systemd services (8 units):"
-    echo "       - ziochub.service, ziochub-redirect.service"
+    echo "  7. Asks which HTTPS port to use (8443 default, or 443 with security note)"
+    echo "  8. Installs and enables systemd services:"
+    echo "       - ziochub.service"
     echo "       - ziochub-cleaner.service, ziochub-cleaner.timer"
     echo "       - ziochub-backup.service, ziochub-backup.timer"
     echo "       - ziochub-misp-sync.service, ziochub-misp-sync.timer"
     echo ""
     echo "HTTPS port:"
-    echo "  During install you can choose: 8443 (default), 443, or a custom port."
-    echo "  If 443 is already in use, the script will warn and suggest 8443 or a reverse proxy."
-    echo "  Port is stored in /opt/ziochub/data/ziochub.env (ZIOCHUB_PORT, REDIRECT_HTTPS_PORT)."
+    echo "  Default is 8443. You can choose 443 (requires setcap; see security note in installer)"
+    echo "  or a custom port. Port is stored in /opt/ziochub/data/ziochub.env (ZIOCHUB_PORT)."
     echo ""
     echo "Paths:"
     echo "  Application   /opt/ziochub"
@@ -74,6 +73,7 @@ show_help() {
     echo "  SSL certs     /opt/ziochub/data/ssl/"
     echo "  Port config   /opt/ziochub/data/ziochub.env"
     echo "  Backups       /opt/ziochub/data/backups/"
+    echo "  Documentation /opt/ziochub/docs/ (optional; e.g. DXL integration)"
     echo ""
     exit 0
 }
@@ -153,10 +153,8 @@ REQUIRED_FILES=(
     "extensions.py"
     "misp_settings.py"
     "start.sh"
-    "http_redirect.py"
     "requirements.txt"
     "ziochub.service"
-    "ziochub-redirect.service"
     "ziochub-cleaner.service"
     "ziochub-cleaner.timer"
 )
@@ -347,11 +345,11 @@ info "Copying application files..."
 cp "${SCRIPT_DIR}/app.py"           "${APP_DIR}/"
 cp "${SCRIPT_DIR}/cleaner.py"       "${APP_DIR}/"
 cp "${SCRIPT_DIR}/start.sh"         "${APP_DIR}/"
-cp "${SCRIPT_DIR}/http_redirect.py" "${APP_DIR}/"
 chmod +x "${APP_DIR}/start.sh"
 [[ -f "${SCRIPT_DIR}/misp_sync_job.py" ]] && cp "${SCRIPT_DIR}/misp_sync_job.py" "${APP_DIR}/"
 [[ -f "${SCRIPT_DIR}/misp_settings.py" ]] && cp "${SCRIPT_DIR}/misp_settings.py" "${APP_DIR}/"
 cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/"
+[[ -f "${SCRIPT_DIR}/requirements-offline.txt" ]] && cp "${SCRIPT_DIR}/requirements-offline.txt" "${APP_DIR}/"
 [[ -f "${SCRIPT_DIR}/config.py" ]]       && cp "${SCRIPT_DIR}/config.py"       "${APP_DIR}/"
 [[ -f "${SCRIPT_DIR}/constants.py" ]]    && cp "${SCRIPT_DIR}/constants.py"    "${APP_DIR}/"
 [[ -f "${SCRIPT_DIR}/extensions.py" ]]   && cp "${SCRIPT_DIR}/extensions.py"   "${APP_DIR}/"
@@ -420,6 +418,13 @@ if [[ -f "${SCRIPT_DIR}/data/org_domains.txt" ]]; then
     ok "Organization domains config copied."
 fi
 
+# Optional documentation (e.g. DXL integration, deployment notes)
+if [[ -d "${SCRIPT_DIR}/docs" ]]; then
+    mkdir -p "${APP_DIR}/docs"
+    cp -r "${SCRIPT_DIR}/docs/"* "${APP_DIR}/docs/" 2>/dev/null || true
+    ok "Documentation (docs/) copied."
+fi
+
 ok "Application files copied."
 
 # ── 4. Permissions ──────────────────────────────────────────────────────────
@@ -467,14 +472,27 @@ if $OFFLINE; then
     # 2. Install build tools (needed if any package is a .tar.gz source dist)
     "${VENV_DIR}/bin/pip" install --no-index --find-links="${PACKAGES_DIR}" \
         setuptools wheel 2>/dev/null || true
-    # 3. Install gunicorn + application dependencies
-    "${VENV_DIR}/bin/pip" install --no-index --find-links="${PACKAGES_DIR}" \
-        gunicorn -r "${APP_DIR}/requirements.txt" || \
-        fail "Offline pip install failed. Packages may be missing or incompatible." \
-             "" \
-             "Common fixes:" \
-             "  - Rebuild the offline package on a machine with the same OS/Python version as this server" \
-             "  - Run: pip download -d packages/ -r requirements.txt gunicorn pip setuptools wheel"
+    # 3. Install gunicorn + application dependencies (full requirements first; fallback to core without DXL)
+    if ! "${VENV_DIR}/bin/pip" install --no-index --find-links="${PACKAGES_DIR}" \
+        gunicorn -r "${APP_DIR}/requirements.txt"; then
+        if [[ -f "${APP_DIR}/requirements-offline.txt" ]]; then
+            warn "Full requirements install failed (e.g. DXL packages missing). Installing core only..."
+            "${VENV_DIR}/bin/pip" install --no-index --find-links="${PACKAGES_DIR}" \
+                gunicorn -r "${APP_DIR}/requirements-offline.txt" || \
+                fail "Offline pip install failed. Packages may be missing or incompatible." \
+                     "" \
+                     "Common fixes:" \
+                     "  - Rebuild the offline package: ./package_offline.sh (on a machine with internet)" \
+                     "  - Or: pip download -d packages/ -r requirements.txt gunicorn pip setuptools wheel"
+            warn "DXL/TIE packages were not in the offline bundle. DXL features will be disabled."
+        else
+            fail "Offline pip install failed. Packages may be missing or incompatible." \
+                 "" \
+                 "Common fixes:" \
+                 "  - Rebuild the offline package on a machine with the same OS/Python version as this server" \
+                 "  - Run: pip download -d packages/ -r requirements.txt gunicorn pip setuptools wheel"
+        fi
+    fi
 else
     "${VENV_DIR}/bin/pip" install --upgrade pip 2>/dev/null || true
     "${VENV_DIR}/bin/pip" install gunicorn -r "${APP_DIR}/requirements.txt"
@@ -525,7 +543,8 @@ chmod -R u+rwX,g+rX,o-rwx "${DATA_DIR}"
 ok "Ownership and data permissions set."
 
 info "Initializing database as ${APP_USER}..."
-if sudo -u "${APP_USER}" env PATH="${VENV_DIR}/bin:${PATH}" bash -c "cd ${APP_DIR} && python3 -c 'from app import _init_db; _init_db()'" 2>/dev/null; then
+# Importing app runs _init_db() once at module load; avoid calling _init_db() again to prevent duplicate migration messages
+if sudo -u "${APP_USER}" env PATH="${VENV_DIR}/bin:${PATH}" bash -c "cd ${APP_DIR} && python3 -c 'import app'" 2>/dev/null; then
     ok "Database initialized."
 else
     warn "Database init skipped or failed (service will create on first run)."
@@ -620,9 +639,12 @@ _port_usage_info() {
 if [[ -z "${HTTPS_PORT}" ]]; then
     echo ""
     info "On which port should ZIoCHub listen for HTTPS?"
-    echo "    [1] 8443 (default, recommended if 443 is used by another service)"
-    echo "    [2] 443  (standard HTTPS; may need to free the port first)"
+    echo "    [1] 8443 (default, recommended - no special permissions)"
+    echo "    [2] 443  (standard HTTPS; requires setcap - see security note below)"
     echo "    [3] Other (enter a port number)"
+    echo ""
+    echo "  Security note (port 443): Binding to 443 as non-root uses setcap on the Python binary."
+    echo "  From an AppSec perspective, prefer 8443 and put nginx/Caddy on 443 as reverse proxy."
     echo ""
     read -p "Choice [1/2/3] (default: 1): " -r PORT_CHOICE
     PORT_CHOICE="${PORT_CHOICE:-1}"
@@ -636,11 +658,7 @@ if [[ -z "${HTTPS_PORT}" ]]; then
                 warn "Port 443 is already in use on this system."
                 _port_usage_info 443
                 echo ""
-                info "Options:"
-                echo "  - Use port 8443 and put ZIoCHub behind a reverse proxy (e.g. nginx) on 443"
-                echo "  - Stop the service currently using 443, then run setup again"
-                echo "  - Choose another port (e.g. 8443) for ZIoCHub"
-                echo ""
+                info "Use port 8443 (option 1) or put ZIoCHub behind a reverse proxy on 443."
                 read -p "Continue with 443 anyway? [y/N] " -n 1 -r
                 echo ""
                 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -657,7 +675,7 @@ if [[ -z "${HTTPS_PORT}" ]]; then
             else
                 HTTPS_PORT="${CUSTOM_PORT}"
                 if [[ "${CUSTOM_PORT}" -lt 1024 ]]; then
-                    warn "Ports below 1024 require extra capabilities (e.g. setcap) when not running as root."
+                    warn "Ports below 1024 require setcap when not running as root."
                 fi
                 if _port_in_use "${HTTPS_PORT}"; then
                     echo ""
@@ -680,23 +698,28 @@ if [[ -z "${HTTPS_PORT}" ]]; then
     ok "HTTPS port set to: ${HTTPS_PORT}"
 fi
 
-# Write env file so systemd units can use it (both app and redirect)
+# Write env file so systemd units can use it
 mkdir -p "${DATA_DIR}"
 ENV_FILE="${DATA_DIR}/ziochub.env"
 echo "# ZIoCHub HTTPS port (generated by setup.sh)" > "${ENV_FILE}"
 echo "ZIOCHUB_PORT=${HTTPS_PORT}" >> "${ENV_FILE}"
-echo "REDIRECT_HTTPS_PORT=${HTTPS_PORT}" >> "${ENV_FILE}"
 chown "${APP_USER}:${APP_GROUP}" "${ENV_FILE}"
 chmod 640 "${ENV_FILE}"
 ok "Port configuration written to ${ENV_FILE}"
 
-# Allow binding to port 443 (or other <1024) as non-root
+# Allow binding to port 443 (or other <1024) as non-root: setcap on the venv Python
 if [[ "${HTTPS_PORT}" =~ ^[0-9]+$ ]] && [[ "${HTTPS_PORT}" -lt 1024 ]]; then
     if command -v setcap &>/dev/null; then
-        if setcap 'cap_net_bind_service=+ep' "${VENV_DIR}/bin/gunicorn" 2>/dev/null; then
-            ok "gunicorn can bind to port ${HTTPS_PORT} (setcap cap_net_bind_service)"
+        VENV_PYTHON="${VENV_DIR}/bin/python"
+        [[ -x "${VENV_PYTHON}" ]] || VENV_PYTHON="${VENV_DIR}/bin/python3"
+        if [[ -x "${VENV_PYTHON}" ]]; then
+            if setcap 'cap_net_bind_service=+ep' "${VENV_PYTHON}" 2>/dev/null; then
+                ok "Can bind to port ${HTTPS_PORT} (setcap cap_net_bind_service on python)"
+            else
+                warn "Could not set cap_net_bind_service on python. To use port ${HTTPS_PORT}, run as root or use a reverse proxy."
+            fi
         else
-            warn "Could not set cap_net_bind_service on gunicorn. To use port ${HTTPS_PORT}, run as root or use a reverse proxy."
+            warn "venv python not found. To use port ${HTTPS_PORT}, run as root or use a reverse proxy."
         fi
     else
         warn "setcap not found. To use port ${HTTPS_PORT}, install libcap2-bin or use a reverse proxy."
@@ -707,7 +730,6 @@ fi
 info "Installing systemd units..."
 
 cp "${SCRIPT_DIR}/ziochub.service"          /etc/systemd/system/
-cp "${SCRIPT_DIR}/ziochub-redirect.service" /etc/systemd/system/
 cp "${SCRIPT_DIR}/ziochub-cleaner.service"  /etc/systemd/system/
 cp "${SCRIPT_DIR}/ziochub-cleaner.timer"    /etc/systemd/system/
 if [[ -f "${SCRIPT_DIR}/ziochub-backup.service" ]] && [[ -f "${SCRIPT_DIR}/ziochub-backup.timer" ]]; then
@@ -722,7 +744,6 @@ fi
 systemctl daemon-reload
 
 systemctl enable ziochub.service
-systemctl enable ziochub-redirect.service
 systemctl enable ziochub-cleaner.timer
 if [[ -f "${SCRIPT_DIR}/ziochub-backup.timer" ]]; then
     systemctl enable ziochub-backup.timer
@@ -734,7 +755,6 @@ if [[ -f /etc/systemd/system/ziochub-misp-sync.timer ]]; then
 fi
 
 systemctl restart ziochub.service
-systemctl restart ziochub-redirect.service 2>/dev/null || true
 systemctl start   ziochub-cleaner.timer
 
 ok "Systemd units installed & started."
@@ -762,6 +782,7 @@ echo "    IOC files     : ${DATA_DIR}/Main/"
 echo "    YARA rules    : ${DATA_DIR}/YARA/"
 echo "    SSL certs     : ${DATA_DIR}/ssl/"
 echo "    Backups       : ${DATA_DIR}/backups/"
+[[ -d "${APP_DIR}/docs" ]] && echo "    Documentation : ${APP_DIR}/docs/"
 echo ""
 
 if $UPGRADE; then
@@ -786,17 +807,14 @@ SERVER_IP="$(hostname -I | awk '{print $1}')"
 DISPLAY_PORT="${HTTPS_PORT:-8443}"
 if [[ -f "${APP_DIR}/data/ssl/cert.pem" && -f "${APP_DIR}/data/ssl/key.pem" ]]; then
     info "Web UI available at: https://${SERVER_IP}:${DISPLAY_PORT}"
-    info "HTTP redirect active: http://${SERVER_IP}:8080 -> https://${SERVER_IP}:${DISPLAY_PORT}"
 else
     info "Web UI available at: http://${SERVER_IP}:${DISPLAY_PORT}"
     info "Upload an SSL certificate via Admin > Certificate to enable HTTPS"
-    info "HTTP redirect will be available on port 8080 after HTTPS is configured"
 fi
 echo ""
 info "Useful commands:"
 info "  journalctl -u ziochub -f               # Live logs"
 info "  systemctl restart ziochub              # Restart app"
-info "  systemctl status ziochub-redirect      # HTTP redirect status"
 info "  systemctl status ziochub-cleaner.timer # Cleaner schedule"
 info "  systemctl status ziochub-backup.timer  # Backup schedule"
 info "  ./uninstall.sh --help                     # Uninstall options"

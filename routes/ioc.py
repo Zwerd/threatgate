@@ -34,6 +34,23 @@ def _from_app(*names):
     return tuple(getattr(_app, n) for n in names)
 
 
+def _sanity_should_block_else_warn(is_blocked: bool, is_admin: bool, mode: str) -> tuple[bool, bool]:
+    """
+    Given critical sanity result and settings, return (should_block, should_warn).
+    block_all: block everyone, show reason. block_non_admin: block non-admin, admin gets warning. warn_all: warn everyone, no block.
+    """
+    mode = (mode or 'block_non_admin').strip().lower()
+    if mode not in ('block_all', 'block_non_admin', 'warn_all'):
+        mode = 'block_non_admin'
+    if not is_blocked:
+        return False, False
+    if mode == 'block_all':
+        return True, False
+    if mode == 'block_non_admin':
+        return not is_admin, is_admin
+    return False, True  # warn_all
+
+
 # ---------------------------------------------------------------------------
 # Helper functions (used only by routes in this module)
 # ---------------------------------------------------------------------------
@@ -293,11 +310,19 @@ def _parse_txt_metadata(metadata_raw):
             s = s[:m.start()].strip()
 
     # Step B: "by <username>" at end (case-insensitive)
-    by_user_end = re.compile(r'\s+by\s+([a-zA-Z0-9_-]+)\s*$', re.IGNORECASE)
+    by_user_end = re.compile(r'\s+by\s+([a-zA-Z0-9_.-]+)\s*$', re.IGNORECASE)
     m = by_user_end.search(s)
     if m:
         analyst = m.group(1).strip().lower()
         s = s[:m.start()].strip()
+
+    # Step B2: analyst at start of metadata (e.g. "analyst1 comment" or "analyst1 | comment") so TXT with team names is attributed correctly
+    if analyst is None and s:
+        analyst_start = re.compile(r'^\s*([a-zA-Z0-9_.-]+)\s*[|\-:\s]')
+        m = analyst_start.match(s)
+        if m:
+            analyst = m.group(1).strip().lower()
+            s = s[m.end():].strip()
 
     # Step C: Ticket ID at start - number followed by hyphen (e.g. "45036 - ...")
     ticket_start = re.compile(r'^\s*(\d+)\s*-\s*')
@@ -358,14 +383,14 @@ def submit_ioc():
         _create_ioc, _compute_rare_find_fields,
         _resolve_analyst_to_user, _auto_ticket_id,
         _capture_champs_before, _detect_champs_changes,
-        _data_dir,
+        _data_dir, _get_setting,
     ) = _from_app(
         '_api_error', '_api_ok', '_commit_with_retry', 'audit_log', '_log_ioc_history',
         'check_allowlist', 'get_country_code', 'calculate_expiration_date', 'check_ioc_exists',
         '_create_ioc', '_compute_rare_find_fields',
         '_resolve_analyst_to_user', '_auto_ticket_id',
         '_capture_champs_before', '_detect_champs_changes',
-        '_data_dir',
+        '_data_dir', '_get_setting',
     )
     try:
         data = request.get_json()
@@ -405,9 +430,12 @@ def submit_ioc():
         cleaned_value, was_changed = refanger(value)
         value = cleaned_value
         
-        # Critical sanity checks (after refanger). Admin may bypass: treat as warning and allow.
+        # Critical sanity checks (after refanger). Mode: block_all / block_non_admin / warn_all.
         is_blocked, msg = check_sanity_critical(value, ioc_type, _data_dir)
-        if is_blocked and not getattr(current_user, 'is_admin', False):
+        mode = _get_setting('sanity_check_mode', 'block_non_admin')
+        is_admin = getattr(current_user, 'is_admin', False)
+        should_block, should_warn = _sanity_should_block_else_warn(is_blocked, is_admin, mode)
+        if should_block:
             return jsonify({'success': False, 'message': f'⛔ {msg}'}), 400
         
         # Validate after cleaning
@@ -417,7 +445,7 @@ def submit_ioc():
         warnings = get_ioc_warnings(value, ioc_type)
         sanity_warnings = get_sanity_warnings(value, ioc_type)
         warnings.extend(sanity_warnings)
-        if is_blocked and getattr(current_user, 'is_admin', False):
+        if should_warn:
             warnings.append(msg)
         
         # Check allowlist (Safety Net) - hard block, no exceptions
@@ -461,6 +489,16 @@ def submit_ioc():
         comment_preview = (cmt[:80] + '...') if len(cmt) > 80 else cmt
         audit_log('IOC_CREATE', f'type={ioc_type} value={value[:80]} comment="{comment_preview}" campaign={campaign_name or "-"}')
         _log_champs_event('ioc_submit', user_id=user_id, payload={'type': ioc_type, 'value': value[:100]})
+        if ioc_type == 'Hash':
+            try:
+                _get_setting = _from_app('_get_setting')[0]
+                if _get_setting('dxl_enabled', 'false').lower() == 'true':
+                    config_path = _get_setting('dxl_config_path', '').strip()
+                    if config_path:
+                        from utils.dxl_tie import push_hash_to_tie
+                        push_hash_to_tie(config_path, value, audit_log)
+            except Exception as dxl_err:
+                logging.warning('DXL push after submit_ioc failed: %s', dxl_err)
         refresh_champ_score_for_user = _from_app('refresh_champ_score_for_user')[0]
         refresh_champ_score_for_user(user_id)
         response = {'success': True, 'message': f'{ioc_type} IOC submitted successfully'}
@@ -559,6 +597,16 @@ def ingest_ioc():
             _commit_with_retry()
             cmt = (comment or '').strip()[:80]
             audit_log('IOC_INGEST', f'type={ioc_type} value={value[:80]} comment="{cmt}" analyst={username}')
+            if ioc_type == 'Hash':
+                try:
+                    _get_setting = _from_app('_get_setting')[0]
+                    if _get_setting('dxl_enabled', 'false').lower() == 'true':
+                        config_path = _get_setting('dxl_config_path', '').strip()
+                        if config_path:
+                            from utils.dxl_tie import push_hash_to_tie
+                            push_hash_to_tie(config_path, value, audit_log)
+                except Exception as dxl_err:
+                    logging.warning('DXL push after ingest_ioc failed: %s', dxl_err)
             if user_id_ingest:
                 refresh_champ_score_for_user = _from_app('refresh_champ_score_for_user')[0]
                 refresh_champ_score_for_user(user_id_ingest)
@@ -729,6 +777,19 @@ def bulk_csv():
             db.session.rollback()
             raise
 
+        # DXL: push all hashes from this batch to TIE if enabled
+        try:
+            _get_setting = _from_app('_get_setting')[0]
+            if _get_setting('dxl_enabled', 'false').lower() == 'true':
+                config_path = _get_setting('dxl_config_path', '').strip()
+                if config_path:
+                    from utils.dxl_tie import push_hash_to_tie
+                    audit_log_fn = _from_app('audit_log')[0]
+                    for hash_value in (findings.get('Hash') or {}):
+                        push_hash_to_tie(config_path, hash_value, audit_log_fn)
+        except Exception as dxl_err:
+            logging.warning('DXL push after bulk_csv failed: %s', dxl_err)
+
         # Build summary message
         summary_parts = []
         for ioc_type, counts in summary.items():
@@ -767,12 +828,14 @@ def preview_csv():
     """
     (
         check_allowlist, calculate_expiration_date,
-        _auto_ticket_id, _data_dir,
+        _auto_ticket_id, _data_dir, _get_setting,
     ) = _from_app(
         'check_allowlist', 'calculate_expiration_date',
-        '_auto_ticket_id', '_data_dir',
+        '_auto_ticket_id', '_data_dir', '_get_setting',
     )
     try:
+        sanity_mode = _get_setting('sanity_check_mode', 'block_non_admin')
+        is_admin = getattr(current_user, 'is_admin', False)
         if 'file' not in request.files:
             return jsonify({'success': False, 'message': 'No file provided'}), 400
         file = request.files['file']
@@ -827,7 +890,8 @@ def preview_csv():
                             final_value = match
                         if not validate_ioc(final_value, final_type):
                             continue
-                        if check_sanity_critical(final_value, final_type, _data_dir)[0] and not getattr(current_user, 'is_admin', False):
+                        is_crit, _ = check_sanity_critical(final_value, final_type, _data_dir)
+                        if _sanity_should_block_else_warn(is_crit, is_admin, sanity_mode)[0]:
                             continue
                         is_blocked, _ = check_allowlist(final_value, final_type)
                         if is_blocked:
@@ -879,12 +943,14 @@ def preview_txt():
     """
     (
         check_allowlist, calculate_expiration_date,
-        _auto_ticket_id, _data_dir,
+        _auto_ticket_id, _data_dir, _get_setting,
     ) = _from_app(
         'check_allowlist', 'calculate_expiration_date',
-        '_auto_ticket_id', '_data_dir',
+        '_auto_ticket_id', '_data_dir', '_get_setting',
     )
     try:
+        sanity_mode = _get_setting('sanity_check_mode', 'block_non_admin')
+        is_admin = getattr(current_user, 'is_admin', False)
         if 'file' not in request.files:
             return jsonify({'success': False, 'message': 'No file provided'}), 400
         file = request.files['file']
@@ -949,7 +1015,8 @@ def preview_txt():
                 else:
                     if not validate_ioc(ioc_cleaned, ioc_type):
                         continue
-                if check_sanity_critical(ioc_cleaned, ioc_type, _data_dir)[0] and not getattr(current_user, 'is_admin', False):
+                is_crit, _ = check_sanity_critical(ioc_cleaned, ioc_type, _data_dir)
+                if _sanity_should_block_else_warn(is_crit, is_admin, sanity_mode)[0]:
                     continue
                 is_blocked, _ = check_allowlist(ioc_cleaned, ioc_type)
                 if is_blocked:
@@ -995,12 +1062,14 @@ def preview_paste():
     """
     (
         check_allowlist, calculate_expiration_date,
-        _auto_ticket_id, _data_dir,
+        _auto_ticket_id, _data_dir, _get_setting,
     ) = _from_app(
         'check_allowlist', 'calculate_expiration_date',
-        '_auto_ticket_id', '_data_dir',
+        '_auto_ticket_id', '_data_dir', '_get_setting',
     )
     try:
+        sanity_mode = _get_setting('sanity_check_mode', 'block_non_admin')
+        is_admin = getattr(current_user, 'is_admin', False)
         data = request.get_json() or {}
         text = (data.get('text') or '').strip()
         if not text:
@@ -1031,7 +1100,8 @@ def preview_paste():
             else:
                 if not validate_ioc(ioc_cleaned, ioc_type):
                     continue
-            if check_sanity_critical(ioc_cleaned, ioc_type, _data_dir)[0] and not getattr(current_user, 'is_admin', False):
+            is_crit, _ = check_sanity_critical(ioc_cleaned, ioc_type, _data_dir)
+            if _sanity_should_block_else_warn(is_crit, is_admin, sanity_mode)[0]:
                 continue
             is_blocked, _ = check_allowlist(ioc_cleaned, ioc_type)
             if is_blocked:
@@ -1077,12 +1147,14 @@ def preview_single():
     """
     (
         check_allowlist, calculate_expiration_date,
-        _auto_ticket_id, _data_dir,
+        _auto_ticket_id, _data_dir, _get_setting,
     ) = _from_app(
         'check_allowlist', 'calculate_expiration_date',
-        '_auto_ticket_id', '_data_dir',
+        '_auto_ticket_id', '_data_dir', '_get_setting',
     )
     try:
+        sanity_mode = _get_setting('sanity_check_mode', 'block_non_admin')
+        is_admin = getattr(current_user, 'is_admin', False)
         data = request.get_json() or {}
         ioc_type = (data.get('type') or '').strip()
         value_raw = (data.get('value') or '').strip()
@@ -1114,11 +1186,17 @@ def preview_single():
             return jsonify({'success': False, 'message': MSG_INVALID_IOC_TYPE}), 400
         if not validate_ioc(value, ioc_type):
             return jsonify({'success': False, 'message': f'Invalid {ioc_type} format'}), 400
-        if check_sanity_critical(value, ioc_type, _data_dir)[0] and not getattr(current_user, 'is_admin', False):
-            return jsonify({'success': False, 'message': 'Critical/sanity block'}), 400
+        is_crit, crit_msg = check_sanity_critical(value, ioc_type, _data_dir)
+        should_block, should_warn = _sanity_should_block_else_warn(is_crit, is_admin, sanity_mode)
+        if should_block:
+            return jsonify({'success': False, 'message': f'⛔ {crit_msg}' if crit_msg else 'Critical/sanity block'}), 400
         is_blocked, _ = check_allowlist(value, ioc_type)
         if is_blocked:
             return jsonify({'success': False, 'message': 'Allowlist block'}), 403
+        warnings = []
+        if should_warn and crit_msg:
+            warnings.append(crit_msg)
+        warnings.extend(get_sanity_warnings(value, ioc_type))
         ticket_id = (data.get('ticket_id') or '').strip() or _auto_ticket_id(current_user.id)
         ttl = (data.get('ttl') or 'Permanent').strip()
         comment = sanitize_comment((data.get('comment') or '').strip() or '') or ''
@@ -1161,6 +1239,8 @@ def preview_single():
         }
         if tags_list:
             item['tags'] = tags_list
+        if warnings:
+            return jsonify({'success': True, 'item': item, 'warnings': warnings})
         return jsonify({'success': True, 'item': item})
     except Exception as e:
         logging.exception('preview_single failed')
@@ -1177,16 +1257,18 @@ def submit_staging():
         _create_ioc, _compute_rare_find_fields,
         _resolve_analyst_to_user, _auto_ticket_id,
         _capture_champs_before, _detect_champs_changes,
-        _data_dir,
+        _data_dir, _get_setting,
     ) = _from_app(
         '_commit_with_retry', '_log_ioc_history', 'audit_log',
         'check_allowlist', 'calculate_expiration_date',
         '_create_ioc', '_compute_rare_find_fields',
         '_resolve_analyst_to_user', '_auto_ticket_id',
         '_capture_champs_before', '_detect_champs_changes',
-        '_data_dir',
+        '_data_dir', '_get_setting',
     )
     try:
+        sanity_mode = _get_setting('sanity_check_mode', 'block_non_admin')
+        is_admin = getattr(current_user, 'is_admin', False)
         data = request.get_json() or {}
         items = data.get('items') or []
         ttl = (data.get('ttl') or 'Permanent').strip()
@@ -1215,6 +1297,7 @@ def submit_staging():
         summary = {}
         total_updated = 0
         total_new = 0
+        new_hashes_for_dxl = []
         for raw in items:
             ioc_value = (raw.get('ioc') or '').strip()
             ioc_type = (raw.get('type') or '').strip()
@@ -1226,7 +1309,7 @@ def submit_staging():
             if not validate_ioc(ioc_value, ioc_type):
                 continue
             is_critical, _ = check_sanity_critical(ioc_value, ioc_type, _data_dir)
-            if is_critical and not getattr(current_user, 'is_admin', False):
+            if _sanity_should_block_else_warn(is_critical, is_admin, sanity_mode)[0]:
                 continue
             is_blocked, _ = check_allowlist(ioc_value, ioc_type)
             if is_blocked:
@@ -1242,9 +1325,12 @@ def submit_staging():
             ticket_id = (raw.get('ticket_id') or '').strip() or fallback_ticket
             comment = sanitize_comment(raw.get('comment') or '') or None
             date_str = (raw.get('date') or '').strip()
-            created_at = _parse_date_from_staging(date_str) or datetime.now()
+            server_now = datetime.now()
+            created_at = _parse_date_from_staging(date_str) or server_now
             if not hasattr(created_at, 'strftime'):
-                created_at = datetime.now()
+                created_at = server_now
+            if created_at > server_now:
+                created_at = server_now
             # Per-item tags override "tags for all"
             item_tags_raw = raw.get('tags')
             if isinstance(item_tags_raw, list) and item_tags_raw:
@@ -1297,6 +1383,8 @@ def submit_staging():
                     payload_hist['expiration_date'] = exp_date.isoformat() if hasattr(exp_date, 'isoformat') else str(exp_date)[:10]
                 _log_ioc_history(ioc_type, ioc_value, 'created', analyst, payload_hist)
                 total_new += 1
+                if ioc_type == 'Hash':
+                    new_hashes_for_dxl.append(ioc_value)
                 summary[ioc_type] = summary.get(ioc_type, {'updated': 0, 'new': 0})
                 summary[ioc_type]['new'] += 1
 
@@ -1305,6 +1393,18 @@ def submit_staging():
         except Exception:
             db.session.rollback()
             raise
+
+        # DXL: push new hashes to TIE if enabled
+        try:
+            _get_setting = _from_app('_get_setting')[0]
+            if _get_setting('dxl_enabled', 'false').lower() == 'true' and new_hashes_for_dxl:
+                config_path = _get_setting('dxl_config_path', '').strip()
+                if config_path:
+                    from utils.dxl_tie import push_hash_to_tie
+                    for hash_value in new_hashes_for_dxl:
+                        push_hash_to_tie(config_path, hash_value, audit_log)
+        except Exception as dxl_err:
+            logging.warning('DXL push after submit_staging failed: %s', dxl_err)
 
         summary_parts = []
         for ioc_type, counts in summary.items():
@@ -1430,6 +1530,7 @@ def upload_txt():
                     findings[ioc_type][ioc_cleaned] = {
                         'comment': comment_sanitized or None,
                         'user': final_user,
+                        'analyst_raw': (parsed['analyst'] or '').strip().lower() or None,
                         'ticket_id': final_ticket_id,
                         'created_at': final_date
                     }
@@ -1454,12 +1555,14 @@ def upload_txt():
                 else:
                     rare = _compute_rare_find_fields(ioc_type, value)
                     u = meta['user']
+                    analyst_from_file = meta.get('analyst_raw')
                     resolved_bulk_txt = _resolve_analyst_to_user(u)
                     if resolved_bulk_txt:
                         store_user_id, store_analyst = resolved_bulk_txt
                     else:
+                        # Use analyst name from file so points go to them (not to uploader) even if not in users table
+                        store_analyst = (analyst_from_file or current_user.username or '').strip().lower() or current_user.username.lower()
                         store_user_id = current_user.id if current_user.is_authenticated else None
-                        store_analyst = current_user.username.lower()
                     db.session.add(_create_ioc(
                         ioc_type, value, store_analyst, 'txt',
                         ticket_id=meta['ticket_id'], comment=meta['comment'],
@@ -1485,6 +1588,19 @@ def upload_txt():
         except Exception:
             db.session.rollback()
             raise
+
+        # DXL: push all hashes from this batch to TIE if enabled
+        try:
+            _get_setting = _from_app('_get_setting')[0]
+            if _get_setting('dxl_enabled', 'false').lower() == 'true':
+                config_path = _get_setting('dxl_config_path', '').strip()
+                if config_path:
+                    from utils.dxl_tie import push_hash_to_tie
+                    audit_log_fn = _from_app('audit_log')[0]
+                    for hash_value in (findings.get('Hash') or {}):
+                        push_hash_to_tie(config_path, hash_value, audit_log_fn)
+        except Exception as dxl_err:
+            logging.warning('DXL push after upload_txt failed: %s', dxl_err)
 
         # Build summary message
         summary_parts = []

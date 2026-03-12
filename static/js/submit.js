@@ -213,6 +213,7 @@ if (privateConfirmYes) {
                 if (result.success) {
                     showToast(result.message, 'success');
                     if (result.auto_corrected) showToast(t('toast.auto_corrected'), 'warning');
+                    if (result.warnings && result.warnings.length) showToast(result.warnings.join('\n'), 'warning');
                     if (result.new_badges || result.level_up || result.rank_up || result.points_earned !== undefined || result.level_info || result.new_nickname) showAchievementModal(result);
                     document.getElementById('iocForm').reset();
                     loadStats();
@@ -245,7 +246,7 @@ async function doSubmitIoc(data) {
             showToast(result.message, 'success');
             if (result.auto_corrected) showToast(t('toast.auto_corrected'), 'warning');
             if (result.warnings && result.warnings.length) {
-                result.warnings.forEach(w => showToast(w, 'warning'));
+                showToast(result.warnings.join('\n'), 'warning');
             }
             if (result.new_badges || result.level_up || result.rank_up || result.points_earned !== undefined || result.level_info || result.new_nickname) showAchievementModal(result);
             document.getElementById('iocForm').reset();
@@ -279,15 +280,7 @@ async function addSingleToStaging() {
         showToast(validationError, 'error');
         return;
     }
-    const criticalError = getClientCriticalCheck(value, type);
-    if (criticalError) {
-        if (authState && authState.is_admin) {
-            showToast(criticalError, 'warning');
-        } else {
-            showToast(criticalError, 'error');
-            return;
-        }
-    }
+    /* Critical sanity (e.g. 8.8.8.8, TLD-only) is enforced by the server based on Admin → Sanity Check setting (block_all / block_non_admin / warn_all). Do not block here. */
     const ticket_id = (document.getElementById('iocTicketId') && document.getElementById('iocTicketId').value) ? document.getElementById('iocTicketId').value.trim() : '';
     const comment = (document.getElementById('iocComment') && document.getElementById('iocComment').value) ? document.getElementById('iocComment').value.trim() : '';
     const expiration = (document.getElementById('iocTTL') && document.getElementById('iocTTL').value) ? document.getElementById('iocTTL').value : 'Permanent';
@@ -319,6 +312,7 @@ async function addSingleToStaging() {
             return;
         }
         const item = result.item;
+        const serverWarnings = Array.isArray(result.warnings) ? result.warnings : [];
         const conflict = !!item.existing_permanent;
         const rowClass = conflict ? 'txt-staging-row txt-staging-row-conflict bg-amber-900/20' : 'txt-staging-row';
         const dataPerm = conflict ? ' data-existing-permanent="true"' : '';
@@ -368,8 +362,8 @@ async function addSingleToStaging() {
         if (type === 'Domain' && value.split('.').every(p => p.length <= 2)) sanityWarnings.push(t('sanity.short_domain') || 'Very short domain. Possible typo.');
         if (rawInput !== rawInput.trim()) sanityWarnings.push(t('sanity.whitespace') || 'Whitespace was trimmed.');
         if (wasRefanged) sanityWarnings.push(t('sanity.auto_refanged') || 'Defanged URL/domain was auto-fixed (hxxp->http, [.]->.).');
-        const allWarnings = [...privateWarnings, ...sanityWarnings];
-        if (allWarnings.length > 0) showToast(allWarnings.join('. '), 'warning');
+        const allWarnings = [...serverWarnings, ...privateWarnings, ...sanityWarnings];
+        if (allWarnings.length > 0) showToast(allWarnings.join('\n'), 'warning');
         if (conflict) showToast(t('bulk.already_exists') || 'This IOC already exists in the system. Approve is disabled.', 'warning');
         const iocValue = document.getElementById('iocValue');
         const iocType = document.getElementById('iocType');

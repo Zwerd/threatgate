@@ -4,6 +4,8 @@ Register with url_prefix='/api'.
 Uses lazy imports from app for shared helpers to avoid circular imports.
 """
 import json
+import os
+import time
 from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, request, jsonify, url_for
@@ -209,6 +211,13 @@ def get_champs_leaderboard():
     """Champs 5.0 Ladder: analysts with rank, avatar, display_name, score, trend, medal. Always from computed scores so all analysts appear."""
     method = _get_setting('champs_scoring_method', '1')
     cache_key = f'champs_leaderboard_{method}'
+    # With Gunicorn multi-worker, cache is per process; if another worker invalidated via file, skip cache here
+    try:
+        is_invalidated = _from_app('_is_champs_leaderboard_cache_invalidated')[0]
+        if is_invalidated():
+            delete_cached(cache_key)
+    except Exception:
+        pass
     cached = get_cached(cache_key)
     if cached is not None:
         return jsonify(cached)

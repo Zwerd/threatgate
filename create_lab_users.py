@@ -2,31 +2,11 @@
 """
 ZIoCHub - Lab / Production Users Setup Script
 =============================================
-Creates users from users/users.json (lab or production).
-Prompts for a single password that will be set for ALL users.
-The script writes directly to the SQLite database — it does not use HTTP or port.
+Creates or updates users from users/users.json. Two modes:
+  1) Local: writes directly to SQLite (dev or prod paths). Stop the service first on the server.
+  2) Remote: uses the ZIoCHub API over HTTPS (e.g. https://server:8443) to create/update users.
 
-Usage:
-    python create_lab_users.py --help              # show all options
-    python create_lab_users.py                     # interactive, current dir (dev)
-    python create_lab_users.py --env dev           # same: use script dir as base (port 5000 dev)
-    python create_lab_users.py --env prod          # production: use /opt/ziochub
-    python create_lab_users.py --password P@ss     # non-interactive
-    python create_lab_users.py --env prod -p P@ss  # production, non-interactive
-
-  Dev (port 5000):  run from project root, or use --env dev. Uses ./data/ziochub.db.
-  Prod:             run from /opt/ziochub, or use --env prod. Uses /opt/ziochub/data/ziochub.db.
-                    HTTPS port is from data/ziochub.env (default 8443).
-
-Users are defined in users/users.json. Each user can have:
-  - username, display_name, is_admin
-  - role (short title)
-  - description (role_description in profile)
-  - image (filename in users/ folder → copied to static/avatars/)
-
-NOTE: Stop the ZIoCHub service before running, or run while service is
-      stopped to avoid session issues:
-          sudo systemctl stop ziochub
+Use --help for all options.
 """
 
 import argparse
@@ -59,6 +39,11 @@ except ImportError:
     print("ERROR: werkzeug is not installed. Activate the venv first:")
     print("  source /opt/ziochub/venv/bin/activate")
     sys.exit(1)
+
+try:
+    import requests
+except ImportError:
+    requests = None  # only needed for --url (remote) mode
 
 COLORS = {
     'green': '\033[92m',
@@ -138,6 +123,70 @@ def _ensure_champ_scores_rows(conn, user_ids, now):
             )
     except sqlite3.OperationalError:
         pass  # champ_scores table may not exist yet (run app once to create)
+
+
+def run_remote(base_url: str, admin_user: str, admin_password: str, password: str, users_list: list, insecure: bool) -> tuple:
+    """Create/update users via ZIoCHub API (HTTPS). Returns (created_count, updated_count)."""
+    if not requests:
+        print("  ERROR: 'requests' is required for remote mode. Install: pip install requests")
+        return 0, 0
+    base_url = base_url.rstrip('/')
+    session = requests.Session()
+    session.verify = not insecure
+    session.headers.update({'Accept': 'application/json'})
+
+    # Login (form POST); app redirects to index on success
+    login_url = f"{base_url}/login"
+    r = session.post(login_url, data={'username': admin_user, 'password': admin_password}, timeout=30, allow_redirects=True)
+    if r.status_code != 200:
+        print(f"  ERROR: Login failed. Status: {r.status_code}")
+        return 0, 0
+    if 'login' in (r.url or '') or (r.text and 'Invalid username' in r.text):
+        print("  ERROR: Invalid admin credentials.")
+        return 0, 0
+
+    # List existing users
+    list_url = f"{base_url}/api/admin/users"
+    r = session.get(list_url, timeout=30)
+    if r.status_code != 200:
+        print(f"  ERROR: GET /api/admin/users failed: {r.status_code}")
+        return 0, 0
+    try:
+        data = r.json()
+    except Exception:
+        print("  ERROR: Invalid JSON from /api/admin/users")
+        return 0, 0
+    payload = data.get('data') or data
+    existing = {str(u.get('username', '')).lower(): u for u in (payload.get('users') or payload if isinstance(payload, list) else []) if u.get('username')}
+
+    created = 0
+    updated = 0
+    for u in users_list:
+        username = (u.get('username') or '').strip()
+        if not username or username.lower() == 'admin':
+            continue
+        display_name = (u.get('display_name') or username).strip()
+        is_admin = bool(u.get('is_admin', False))
+        key = username.lower()
+        if key in existing:
+            user_id = existing[key].get('id')
+            if user_id is None:
+                continue
+            put_url = f"{base_url}/api/admin/users/{user_id}"
+            r = session.put(put_url, json={'display_name': display_name, 'is_admin': is_admin, 'password': password}, timeout=30)
+            if r.status_code == 200:
+                updated += 1
+                print(f"  {c('~', 'yellow')} {username:<12} {display_name:<22} {'Admin' if is_admin else '-':<6}  (updated)")
+            else:
+                print(f"  {c('Failed', 'red')}   {username} PUT: {r.status_code} {r.text[:80]}")
+        else:
+            r = session.post(list_url, json={'username': username, 'password': password, 'display_name': display_name, 'is_admin': is_admin}, timeout=30)
+            if r.status_code in (200, 201):
+                created += 1
+                print(f"  {c('+', 'green')} {username:<12} {display_name:<22} {'Admin' if is_admin else '-':<6}  (created)")
+            else:
+                print(f"  {c('Failed', 'red')}   {username} POST: {r.status_code} {r.text[:80]}")
+    return created, updated
 
 
 def create_users(db_path, password, users_list):
@@ -252,26 +301,67 @@ def create_users(db_path, password, users_list):
 
 def main():
     global _base_dir, _data_dir, _db_path, _users_dir, _users_json, _avatars_dir
-    parser = argparse.ArgumentParser(description='ZIoCHub - Create lab/production users from users/users.json')
-    parser.add_argument('--password', '-p', help='Password for all users (prompted if omitted)')
+    parser = argparse.ArgumentParser(
+        description='ZIoCHub - Create or update users from users/users.json (local DB or remote API).',
+        epilog="""
+Examples:
+  Local (development, port 5000):
+    python create_lab_users.py
+    python create_lab_users.py --env dev
+
+  Local (production on server, /opt/ziochub):
+    sudo systemctl stop ziochub
+    python create_lab_users.py --env prod
+    sudo systemctl start ziochub
+
+  Remote (production over HTTPS, e.g. port 8443):
+    python create_lab_users.py --url https://server:8443 --admin-user admin
+    python create_lab_users.py --url https://server:8443 --admin-user admin --insecure
+
+Passwords are always prompted (never pass via CLI, to avoid shell history).
+"""
+    )
     parser.add_argument('--env', choices=('dev', 'prod'), default='dev',
-                        help='dev = script dir and ./data (port 5000); prod = /opt/ziochub (port from ziochub.env). Default: dev')
+                        help='Local mode: dev = script dir + ./data (port 5000); prod = /opt/ziochub. Default: dev')
+    parser.add_argument('--url', metavar='BASE_URL', default=None,
+                        help='Remote mode: ZIoCHub base URL (e.g. https://host:8443). Creates/updates users via API.')
+    parser.add_argument('--admin-user', metavar='USER', default=None,
+                        help='Admin username for remote mode (required when using --url)')
+    parser.add_argument('--insecure', action='store_true',
+                        help='Skip TLS certificate verification (remote mode only)')
     args = parser.parse_args()
 
-    if args.env == 'prod':
+    remote = bool(args.url)
+    if remote:
+        _base_dir = os.path.dirname(os.path.abspath(__file__))
+        _data_dir = os.path.join(_base_dir, 'data')
+        _db_path = os.path.join(_data_dir, 'ziochub.db')  # unused in remote
+        _users_dir = os.path.join(_base_dir, 'users')
+        _users_json = os.path.join(_users_dir, 'users.json')
+        _avatars_dir = os.path.join(_base_dir, 'static', 'avatars')
+        if not args.admin_user:
+            print("  ERROR: --admin-user is required when using --url")
+            sys.exit(1)
+    elif args.env == 'prod':
         _base_dir = '/opt/ziochub'
         _data_dir = os.path.join(_base_dir, 'data')
         _db_path = os.path.join(_data_dir, 'ziochub.db')
         _users_dir = os.path.join(_base_dir, 'users')
         _users_json = os.path.join(_users_dir, 'users.json')
         _avatars_dir = os.path.join(_base_dir, 'static', 'avatars')
+    # else dev: already set at top level
 
     print(f"\n{c('=== ZIoCHub Lab Users Setup ===', 'bold')}")
-    print(f"  Env:      {args.env} ({'production /opt/ziochub' if args.env == 'prod' else 'development / port 5000'})")
-    print(f"  Database: {_db_path}")
-    print(f"  Users:    {_users_json}")
+    if remote:
+        print(f"  Mode:     remote (API)")
+        print(f"  URL:      {args.url}")
+        print(f"  Users:    {_users_json}")
+    else:
+        print(f"  Env:      {args.env} ({'production /opt/ziochub' if args.env == 'prod' else 'development / port 5000'})")
+        print(f"  Database: {_db_path}")
+        print(f"  Users:    {_users_json}")
 
-    if not os.path.exists(_db_path):
+    if not remote and not os.path.exists(_db_path):
         print(f"\n  {c('ERROR:', 'red')} Database not found at {_db_path}")
         print(f"  Run the app once first to initialize the DB.")
         sys.exit(1)
@@ -279,32 +369,40 @@ def main():
     users_list = load_users_from_json()
     if users_list is None:
         print(f"\n  {c('ERROR:', 'red')} users/users.json not found at {_users_json}")
-        if args.env == 'prod':
+        if args.env == 'prod' and not remote:
             print(f"  For production, create /opt/ziochub/users/ and add users.json there (or copy from dev).")
         else:
             print(f"  Create users/users.json with your lab users (see users/README.md).")
         sys.exit(1)
 
-    password = args.password
+    # Passwords always via prompt (never CLI) to avoid shell history
+    password = getpass.getpass(f"\n  Enter password for all lab users: ")
     if not password:
-        password = getpass.getpass(f"\n  Enter password for all lab users: ")
-        if not password:
-            print(f"  {c('ERROR:', 'red')} Password cannot be empty.")
-            sys.exit(1)
-        confirm = getpass.getpass(f"  Confirm password: ")
-        if password != confirm:
-            print(f"  {c('ERROR:', 'red')} Passwords do not match.")
-            sys.exit(1)
-
+        print(f"  {c('ERROR:', 'red')} Password cannot be empty.")
+        sys.exit(1)
+    confirm = getpass.getpass(f"  Confirm password: ")
+    if password != confirm:
+        print(f"  {c('ERROR:', 'red')} Passwords do not match.")
+        sys.exit(1)
     if len(password) < 4:
         print(f"  {c('ERROR:', 'red')} Password must be at least 4 characters.")
         sys.exit(1)
+
+    admin_password = None
+    if remote:
+        admin_password = getpass.getpass(f"  Enter admin password for {args.admin_user}: ")
+        if not admin_password:
+            print(f"  {c('ERROR:', 'red')} Admin password cannot be empty.")
+            sys.exit(1)
 
     print(f"\n  {c('Users to create/update:', 'bold')}\n")
     print(f"  {'Username':<12} {'Display Name':<22} {'Role':<6}")
     print(f"  {'─'*12} {'─'*22} {'─'*6}")
 
-    created, updated = create_users(_db_path, password, users_list)
+    if remote:
+        created, updated = run_remote(args.url, args.admin_user, admin_password, password, users_list, args.insecure)
+    else:
+        created, updated = create_users(_db_path, password, users_list)
 
     print(f"\n  {c('Done!', 'green')} Created: {created}, Updated: {updated}")
     print(f"  All users share the same password.\n")

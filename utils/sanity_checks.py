@@ -1,6 +1,6 @@
 """
 Sanity checks for IOC submission - Critical (block) and Warnings (allow with alert).
-Critical: Defanged URLs, TLD-only, Critical infra IPs, Own domain.
+Critical: TLD-only, Critical infra IPs. (Organization domains / protected assets: use Admin → Allowlist.)
 Warnings: Short domain, Hash mismatch, Whitespace, URL with hash,
           Bogon IPs, Popular domains, Cloud providers, Punycode/IDN, DGA-like,
           URL credentials, URL raw IP, Deep subdomains, Free email providers, Stale IOCs.
@@ -238,21 +238,11 @@ def _is_free_email_domain(domain: str) -> bool:
     return domain.lower().strip('.') in _FREE_EMAIL_DOMAINS
 
 
-def _load_org_domains(data_dir: str) -> list[str]:
-    """Load organization domains from data/org_domains.txt (one per line)."""
-    path = os.path.join(data_dir, 'org_domains.txt')
-    if not os.path.isfile(path):
-        return []
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return [line.strip().lower() for line in f if line.strip() and not line.startswith('#')]
-    except OSError:
-        return []
-
-
 # ---------------------------------------------------------------------------
 # Critical checks (block submission)
 # ---------------------------------------------------------------------------
+# Note: Organization domains and other protected assets are defined in
+# Admin → Allowlist (hard block, no override). No separate org_domains.txt.
 
 
 def check_critical(value: str, ioc_type: str, data_dir: str = '') -> tuple[bool, str | None]:
@@ -280,14 +270,6 @@ def check_critical(value: str, ioc_type: str, data_dir: str = '') -> tuple[bool,
                 return True, f'Critical infrastructure IP ({val}) - blocking DNS would break network access.'
         except ValueError:
             pass
-
-    # 3. Own domain
-    if data_dir and ioc_type in ('Domain', 'URL'):
-        org_domains = _load_org_domains(data_dir)
-        val_lower = val.lower()
-        for org in org_domains:
-            if org and (val_lower == org or val_lower.endswith('.' + org) or org in val_lower):
-                return True, f'Own/organization domain ({org}) - blocking may cut access to internal services.'
 
     return False, None
 

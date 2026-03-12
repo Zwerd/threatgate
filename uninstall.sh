@@ -17,7 +17,7 @@
 #    sudo ./setup.sh                  # Online
 #    sudo ./setup.sh --offline        # Offline (from installer ZIP)
 #
-#  Updated: 2025-03
+#  Updated: 2025-03-11
 # ============================================================================
 set -euo pipefail
 
@@ -45,9 +45,8 @@ show_help() {
     echo ""
     echo -e "${RED}══ What Gets Removed ══${NC}"
     echo ""
-    echo "  Systemd services & timers (8 units):"
+    echo "  Systemd services & timers:"
     echo "    - ziochub.service            (main app)"
-    echo "    - ziochub-redirect.service   (HTTP→HTTPS redirect)"
     echo "    - ziochub-cleaner.service    + timer (expired IOC cleanup)"
     echo "    - ziochub-backup.service     + timer (daily DB backup)"
     echo "    - ziochub-misp-sync.service  + timer (MISP pull)"
@@ -55,6 +54,7 @@ show_help() {
     echo ""
     echo "  Application directory (/opt/ziochub):"
     echo "    - Python source code (app.py, utils/, routes/, scripts/, templates/, static/)"
+    echo "    - Documentation (docs/, if present)"
     echo "    - Virtual environment (venv/)"
     echo "    - SQLite database (data/ziochub.db)"
     echo "    - IOC files (data/Main/)"
@@ -66,7 +66,7 @@ show_help() {
     echo "    - Config files (allowlist.txt, org_domains.txt, GeoIP DB)"
     echo ""
     echo "  System:"
-    echo "    - All running ZIoCHub processes (gunicorn, redirect)"
+    echo "    - All running ZIoCHub processes (gunicorn)"
     echo "    - System user 'ziochub' and group 'ziochub'"
     echo ""
     echo -e "${GREEN}══ What Is NOT Removed ══${NC}"
@@ -178,11 +178,6 @@ KILLED=0
 # Kill gunicorn workers running from /opt/ziochub
 if pgrep -f "${APP_DIR}/venv/bin/gunicorn" &>/dev/null; then
     pkill -f "${APP_DIR}/venv/bin/gunicorn" 2>/dev/null || true
-    KILLED=$((KILLED + 1))
-fi
-# Kill http_redirect.py if running
-if pgrep -f "${APP_DIR}/http_redirect.py" &>/dev/null; then
-    pkill -f "${APP_DIR}/http_redirect.py" 2>/dev/null || true
     KILLED=$((KILLED + 1))
 fi
 # Kill any remaining processes owned by the app user

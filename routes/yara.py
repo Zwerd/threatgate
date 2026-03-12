@@ -3,9 +3,11 @@ YARA API routes: upload, list, delete, view, update, edit-yara-meta.
 Register with url_prefix='/api'.
 Uses lazy imports from app for shared helpers to avoid circular imports.
 """
+import json
 import logging
 import os
 import re
+import threading
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify, current_app
@@ -50,10 +52,11 @@ def _yara_safe_path_pending(filename):
 @login_required
 def upload_yara():
     try:
+        _auto_ticket_id, = _from_app('_auto_ticket_id')
         if 'file' not in request.files:
             return jsonify({'success': False, 'message': 'No file provided'}), 400
         file = request.files['file']
-        ticket_id = request.form.get('ticket_id', '').strip()
+        ticket_id = (request.form.get('ticket_id') or '').strip() or _auto_ticket_id(current_user.id)
         campaign_name = (request.form.get('campaign_name') or '').strip() or None
         campaign_id = None
         if campaign_name:
@@ -253,7 +256,8 @@ def edit_yara_meta():
             return jsonify({'success': False, 'message': 'YARA rule not found'}), 404
         new_ticket_id = data.get('ticket_id')
         if new_ticket_id is not None:
-            rule.ticket_id = new_ticket_id.strip() or None
+            _auto_ticket_id, = _from_app('_auto_ticket_id')
+            rule.ticket_id = (new_ticket_id.strip() if new_ticket_id else '') or _auto_ticket_id(current_user.id)
         new_comment = data.get('comment')
         if new_comment is not None:
             rule.comment = sanitize_comment(new_comment) or None
@@ -395,10 +399,65 @@ def approve_yara():
                     refresh_champ_score_for_user(owner.id)
                 except Exception as e:
                     logging.warning('YARA approve: refresh_champ_score for analyst %s failed: %s', analyst_username, e)
-        return jsonify({'success': True, 'message': f'Approved: {safe_pending}'})
+
+        # FireEye automation: push to appliances in background
+        fireeye_pending = False
+        _get_setting = _from_app('_get_setting')[0]
+        if _get_setting('automation_fireeye_enabled', 'false').lower() == 'true':
+            try:
+                raw = _get_setting('automation_fireeye_appliances', '[]') or '[]'
+                appliances = json.loads(raw) if isinstance(raw, str) else raw
+                if isinstance(appliances, list) and appliances:
+                    from utils.fireeye_push import push_yara_to_appliances, set_fireeye_status
+                    app_obj = current_app._get_current_object()
+                    set_fireeye_status(safe_pending, 'pending', '')
+
+                    def _fireeye_upload():
+                        with app_obj.app_context():
+                            try:
+                                result = push_yara_to_appliances(content, safe_pending, appliances, audit_log)
+                                if result['overall_success']:
+                                    set_fireeye_status(safe_pending, 'success', 'All appliances updated.')
+                                else:
+                                    msgs = '; '.join(
+                                        r.get('name', '') + ': ' + (r.get('message') or '')
+                                        for r in result.get('results', [])
+                                    )
+                                    set_fireeye_status(safe_pending, 'error', msgs or 'Push failed')
+                            except Exception as e:
+                                logging.exception('FireEye push failed for %s', safe_pending)
+                                set_fireeye_status(safe_pending, 'error', str(e))
+                                audit_log('yara_push_fail', f'file={safe_pending} error={e}')
+
+                    t = threading.Thread(target=_fireeye_upload, daemon=True)
+                    t.start()
+                    fireeye_pending = True
+            except Exception as e:
+                logging.warning('FireEye automation setup failed: %s', e)
+
+        return jsonify({
+            'success': True,
+            'message': f'Approved: {safe_pending}',
+            'fireeye_pending': fireeye_pending,
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/yara/fireeye-status', methods=['GET'])
+@login_required
+def fireeye_status():
+    """Return FireEye push status for a filename (for UI polling after approve)."""
+    filename = (request.args.get('filename') or '').strip()
+    if not filename:
+        return jsonify({'success': False, 'message': 'filename required'}), 400
+    safe, _ = _yara_safe_path(filename)
+    if safe is None:
+        return jsonify({'success': False, 'message': 'invalid filename'}), 400
+    from utils.fireeye_push import get_fireeye_status
+    info = get_fireeye_status(safe, clear_after_read=True)
+    return jsonify({'success': True, 'data': info})
 
 
 @bp.route('/yara/reject', methods=['POST'])

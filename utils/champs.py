@@ -153,12 +153,12 @@ def _compute_smart_ioc_points(method, comment, campaign_id, analyst_key, day, co
     Single submit: 2 base. Bulk: 1 base.
     Comment bonus (if not duplicated 3+ times in same batch/day):
       - <10 chars: 0
-      - 10–99 chars: +1
-      - 100–299 chars: +2
+      - 10-99 chars: +1
+      - 100-299 chars: +2
       - >=300 chars: +3
     +1 for campaign link.
     Tag bonus (bulk): same tag for all = 1 pt base only; more distinct tags = more points:
-      - 0–1 tag: 0 bonus
+      - 0-1 tag: 0 bonus
       - 2 tags: +1
       - 3+ tags: +2
     Range: 1 (lazy bulk) up to ~8 (single + long comment + campaign + tags).
@@ -188,7 +188,8 @@ def _compute_smart_ioc_points(method, comment, campaign_id, analyst_key, day, co
         pts += 2
     elif tag_count >= 2:
         pts += 1
-    return pts
+    # Per doc: minimum 1, maximum ~8; never 0 for any IOC submit
+    return max(1, min(8, pts))
 
 
 def _build_smart_comment_counts(ioc_rows):
@@ -314,7 +315,7 @@ def compute_analyst_scores_aggregated(db, IOC, YaraRule, User, ActivityEvent=Non
     if end_dt is not None:
         params['end_dt'] = end_dt
 
-    # 1) IOC totals and last_created – attribute by ioc.analyst (assigned), not submitter (user_id)
+    # 1) IOC totals and last_created - attribute by ioc.analyst (assigned), not submitter (user_id)
     ioc_where = _dt_filter('ioc', 'created_at', params)
     q1 = text(f"""
         SELECT LOWER(TRIM(ioc.analyst)) AS analyst,
@@ -344,7 +345,7 @@ def compute_analyst_scores_aggregated(db, IOC, YaraRule, User, ActivityEvent=Non
                 analyst_last[a] = max(prev_d, d)
         # add to daily later via query 2
 
-    # 2) IOC daily points (for streak and base score) – attribute by ioc.analyst
+    # 2) IOC daily points (for streak and base score) - attribute by ioc.analyst
     q2 = text(f"""
         SELECT LOWER(TRIM(ioc.analyst)) AS analyst,
                DATE(ioc.created_at) AS d,
@@ -523,13 +524,14 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
             scoring_method=scoring_method, exclude_usernames=exclude_usernames,
             start_dt=start_dt, end_dt=end_dt,
         )
-    # Smart Effort: limit to last N days when no date filter to avoid loading 1M rows
+    # Smart Effort: limit to last N days when no date filter to avoid loading 1M rows.
+    # Use server local time (not UTC) so the window matches created_at from staging (also server local).
+    # Add a small buffer to end_dt so IOCs just committed in this request are always included.
     if scoring_method == SCORING_SMART and start_dt is None and end_dt is None:
-        from datetime import timezone as tz
-        _end = datetime.now(tz.utc).replace(tzinfo=None)
+        _end = datetime.now()
         _start = _end - timedelta(days=SMART_EFFORT_DAYS_LIMIT)
         start_dt = _start
-        end_dt = _end
+        end_dt = _end + timedelta(seconds=60)
 
     _excluded = {u.lower() for u in (exclude_usernames or [])}
     today = date.today()
@@ -541,7 +543,7 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
     analyst_last = {}
     analyst_user_id = {}
 
-    # IOC points – attribute by assigned analyst (ioc.analyst), not submitter (user_id)
+    # IOC points - attribute by assigned analyst (ioc.analyst), not submitter (user_id)
     username_to_id = {(u.username or '').strip().lower(): u.id for u in User.query.all() if (u.username or '').strip()}
     smart = scoring_method == SCORING_SMART
     ioc_cols = [IOC.analyst, IOC.type, IOC.campaign_id, IOC.user_id, IOC.created_at]
@@ -568,9 +570,10 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
     scored = _score_ioc_rows(ioc_dicts, scoring_method, comment_counts)
 
     for analyst, d, pts, uid in scored:
-        if d:
-            analyst_daily[analyst][d] = analyst_daily[analyst].get(d, 0) + pts
-            analyst_last[analyst] = max(analyst_last.get(analyst, d), d) if analyst_last.get(analyst) else d
+        # Normalize to date (SQLite may return string); fallback to today so points always count
+        day_key = (_ensure_date(d) if d is not None else None) or today
+        analyst_daily[analyst][day_key] = analyst_daily[analyst].get(day_key, 0) + pts
+        analyst_last[analyst] = max(analyst_last.get(analyst, day_key), day_key) if analyst_last.get(analyst) else day_key
         analyst_iocs[analyst] += 1
         if uid:
             analyst_user_id[analyst] = uid
@@ -647,6 +650,7 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
                 p = {}
 
             pts_extra = 0
+            # Smart (#8) Note: 1–3 pts by content length (CHAMPS_SCORING_METHODS.md: <10→1, 10–99→1, 100–299→2, 300+→3)
             if event_type == 'ioc_note_add' and smart:
                 length = int(p.get('length') or 0)
                 if length >= SMART_COMMENT_MIN_LEN:
@@ -701,7 +705,11 @@ def compute_analyst_scores(db, IOC, YaraRule, User, ActivityEvent=None, user_id_
                 d = d - timedelta(days=1)
             else:
                 break
-        streak_bonus = int(base_score * STREAK_BONUS_PERCENT / 100) if streak >= STREAK_DAYS else 0
+        # Smart Effort (#8): no streak bonus (per CHAMPS_SCORING_METHODS.md)
+        if scoring_method == SCORING_SMART:
+            streak_bonus = 0
+        else:
+            streak_bonus = int(base_score * STREAK_BONUS_PERCENT / 100) if streak >= STREAK_DAYS else 0
         total_score = base_score + streak_bonus
 
         last_d = analyst_last.get(analyst)
@@ -907,7 +915,7 @@ def _get_badges(db, IOC, YaraRule, ActivityEvent, analyst_lower, user_id, analys
     if streak >= 3 and streak < 5:
         add_badge('warm_streak')
 
-    # Type counts and campaign_linked – by assigned analyst (ioc.analyst), not submitter
+    # Type counts and campaign_linked - by assigned analyst (ioc.analyst), not submitter
     type_counts = defaultdict(int)
     type_rows = db.session.query(IOC.type, func.count()).filter(func.lower(IOC.analyst) == analyst_lower).group_by(IOC.type).all()
     campaign_linked = db.session.query(func.count()).filter(func.lower(IOC.analyst) == analyst_lower, IOC.campaign_id.isnot(None), IOC.campaign_id != '').scalar() or 0
@@ -943,7 +951,7 @@ def _get_badges(db, IOC, YaraRule, ActivityEvent, analyst_lower, user_id, analys
         add_badge('weekend_warrior')
 
     total_iocs = sum(type_counts.values())
-    # Rare Find: first-ever in system (new country GEO, new TLD, or new email domain) – by analyst
+    # Rare Find: first-ever in system (new country GEO, new TLD, or new email domain) - by analyst
     has_rare = db.session.query(IOC).filter(func.lower(IOC.analyst) == analyst_lower, IOC.rare_find_type.isnot(None)).first() is not None
     if has_rare:
         add_badge('rare_find')
@@ -1006,7 +1014,7 @@ def _compute_team_daily_totals(db, IOC, YaraRule, ActivityEvent, today, days_bac
     team_daily = defaultdict(int)
     start = today - timedelta(days=days_back)
     start_dt = datetime.combine(start, datetime.min.time())
-    # IOCs: aggregated by date (2/3 pts) – no row load
+    # IOCs: aggregated by date (2/3 pts) - no row load
     q_ioc = text("""
         SELECT DATE(created_at) AS d,
                SUM(CASE WHEN campaign_id IS NOT NULL AND TRIM(COALESCE(campaign_id,'')) != '' THEN :ioc_campaign ELSE :ioc_default END) AS day_pts
@@ -1086,7 +1094,7 @@ def get_analyst_detail(db, IOC, YaraRule, User, UserProfile, ActivityEvent, user
     if not row:
         return None
 
-    # IOC type breakdown for nickname – by assigned analyst (same as leaderboard)
+    # IOC type breakdown for nickname - by assigned analyst (same as leaderboard)
     ioc_type_counts = defaultdict(int)
     type_rows = db.session.query(IOC.type, func.count()).filter(func.lower(IOC.analyst) == analyst_lower).group_by(IOC.type).all()
     for (t, cnt) in type_rows:
@@ -1108,7 +1116,7 @@ def get_analyst_detail(db, IOC, YaraRule, User, UserProfile, ActivityEvent, user
     smart = scoring_method == SCORING_SMART
 
     if smart:
-        # Smart: need comment/submission_method – load only last 30 days for this analyst
+        # Smart: need comment/submission_method - load only last 30 days for this analyst
         ioc_detail_cols = [IOC.created_at, IOC.type, IOC.campaign_id, IOC.comment, IOC.submission_method]
         raw_rows = db.session.query(*ioc_detail_cols).filter(
             func.lower(IOC.analyst) == analyst_lower,
@@ -1125,7 +1133,7 @@ def get_analyst_detail(db, IOC, YaraRule, User, UserProfile, ActivityEvent, user
             if day_key:
                 analyst_daily[day_key] = analyst_daily.get(day_key, 0) + pts
     else:
-        # Non-Smart: aggregate by date (2/3 pts) – by assigned analyst
+        # Non-Smart: aggregate by date (2/3 pts) - by assigned analyst
         q = text("""
             SELECT DATE(created_at) AS d,
                    SUM(CASE WHEN campaign_id IS NOT NULL AND TRIM(COALESCE(campaign_id,'')) != '' THEN :ioc_campaign ELSE :ioc_default END) AS day_pts

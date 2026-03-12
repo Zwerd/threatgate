@@ -59,10 +59,12 @@ SSL_CERT_FILE = os.path.join(SSL_DIR, 'cert.pem')
 SSL_KEY_FILE = os.path.join(SSL_DIR, 'key.pem')
 SSL_CA_FILE = os.path.join(SSL_DIR, 'ca.pem')
 GEOIP_DB_PATH = os.path.join(_data_dir, 'GeoLite2-City.mmdb')
+DXL_DIR = os.path.join(_data_dir, 'dxl')
 os.makedirs(DATA_MAIN, exist_ok=True)
 os.makedirs(DATA_YARA, exist_ok=True)
 os.makedirs(DATA_YARA_PENDING, exist_ok=True)
 os.makedirs(SSL_DIR, exist_ok=True)
+os.makedirs(DXL_DIR, exist_ok=True)
 
 app = Flask(__name__)
 
@@ -731,8 +733,25 @@ def _champs_excluded_usernames():
     return excluded or None
 
 
+def _champs_leaderboard_invalidation_path():
+    """Path to a file touched when leaderboard cache must be invalidated (shared across Gunicorn workers)."""
+    return os.path.join(_data_dir, '.champs_leaderboard_invalidated')
+
+
+def _is_champs_leaderboard_cache_invalidated():
+    """True if leaderboard was invalidated recently (file-based, visible to all workers). Use before serving cached leaderboard."""
+    try:
+        path = _champs_leaderboard_invalidation_path()
+        if not os.path.exists(path):
+            return False
+        return (time.time() - os.path.getmtime(path)) < 130
+    except Exception:
+        return False
+
+
 def refresh_champ_score_for_user(user_id):
-    """Invalidate Champs cache so next leaderboard/analyst load is fresh. Call after IOC submit/revoke or YARA upload."""
+    """Invalidate Champs cache so next leaderboard/analyst load is fresh. Call after IOC submit/revoke or YARA upload.
+    With Gunicorn multi-worker, in-memory cache is per process; we touch a file so all workers skip stale leaderboard cache."""
     if not user_id:
         return
     try:
@@ -740,6 +759,12 @@ def refresh_champ_score_for_user(user_id):
         method = _get_setting('champs_scoring_method', '1')
         delete_cached(f'champs_leaderboard_{method}')
         delete_cached(f'champs_analyst_{user_id}_{method}')
+        try:
+            path = _champs_leaderboard_invalidation_path()
+            with open(path, 'a'):
+                os.utime(path, None)
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -945,7 +970,35 @@ def health_check():
             'status': 'error',
             'error': str(e)[:100],
         }
-    
+
+    # DXL / TIE (optional)
+    try:
+        dxl_enabled = _get_setting('dxl_enabled', 'false').lower() == 'true'
+        if dxl_enabled:
+            config_path = _get_setting('dxl_config_path', '').strip()
+            if config_path and os.path.isfile(config_path):
+                health_status['checks']['dxl'] = {
+                    'status': 'configured',
+                    'config_path': config_path,
+                    'message': 'Config file present; use Admin Test Connection to verify broker/TIE',
+                }
+            else:
+                health_status['checks']['dxl'] = {
+                    'status': 'config_missing',
+                    'config_path': config_path or '(empty)',
+                    'message': 'DXL enabled but config file not found or path empty',
+                }
+        else:
+            health_status['checks']['dxl'] = {
+                'status': 'disabled',
+                'message': 'DXL not enabled',
+            }
+    except Exception as e:
+        health_status['checks']['dxl'] = {
+            'status': 'error',
+            'error': str(e)[:100],
+        }
+
     # Determine HTTP status code
     if health_status['status'] == 'healthy':
         status_code = 200

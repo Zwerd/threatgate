@@ -418,6 +418,32 @@
                 loadYaraPending();
                 loadYaraRules();
                 if (typeof loadLiveFeed === 'function') loadLiveFeed();
+                if (result.fireeye_pending) {
+                    showToast('Uploading to external API(s)...', 'info');
+                    const pollFireeye = async () => {
+                        try {
+                            const r = await fetch('/api/yara/fireeye-status?filename=' + encodeURIComponent(filename));
+                            const d = await r.json();
+                            if (d.success && d.data) {
+                                const status = d.data.status;
+                                if (status === 'pending') {
+                                    setTimeout(pollFireeye, 1500);
+                                    return;
+                                }
+                                if (status === 'success') {
+                                    showToast('YARA push: SUCCESS', 'success');
+                                } else {
+                                    showToast('YARA push: ERROR - ' + (d.data.message || 'Unknown'), 'error');
+                                }
+                                return;
+                            }
+                            setTimeout(pollFireeye, 1500);
+                        } catch (e) {
+                            showToast('YARA push status check failed', 'error');
+                        }
+                    };
+                    setTimeout(pollFireeye, 1500);
+                }
             } else {
                 showToast(result.message || 'Approve failed', 'error');
             }

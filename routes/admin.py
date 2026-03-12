@@ -155,6 +155,11 @@ _SETTINGS_DEFAULTS = {
     'syslog_udp_enabled': 'false',
     'syslog_udp_host': '',
     'syslog_udp_port': '514',
+    'dxl_enabled': 'false',
+    'dxl_config_path': '',
+    'automation_fireeye_enabled': 'false',
+    'automation_fireeye_appliances': '[]',
+    'sanity_check_mode': 'block_non_admin',
 }
 
 
@@ -208,16 +213,30 @@ def save_settings():
             misp_keys = _MISP_SAVE_KEYS_FALLBACK
         syslog_keys = ('syslog_udp_enabled', 'syslog_udp_host', 'syslog_udp_port')
         ldap_keys = ('auth_mode', 'ldap_enabled', 'ldap_url', 'ldap_base_dn', 'ldap_bind_dn', 'ldap_bind_password', 'ldap_user_filter')
+        dxl_keys = ('dxl_enabled', 'dxl_config_path')
+        automation_keys = ('automation_fireeye_enabled', 'automation_fireeye_appliances')
+        sanity_keys = ('sanity_check_mode',)
         sections = []
-        for key in ldap_keys + misp_keys + syslog_keys:
+        for key in ldap_keys + misp_keys + syslog_keys + dxl_keys + automation_keys + sanity_keys:
             if key in data:
-                _set_setting(key, str(data[key]).strip())
+                val = data[key]
+                if key == 'automation_fireeye_appliances':
+                    import json
+                    _set_setting(key, json.dumps(val) if isinstance(val, (list, dict)) else str(val).strip())
+                else:
+                    _set_setting(key, str(val).strip())
                 if key in ldap_keys and 'LDAP' not in sections:
                     sections.append('LDAP')
                 elif key in misp_keys and 'MISP' not in sections:
                     sections.append('MISP')
                 elif key in syslog_keys and 'Syslog' not in sections:
                     sections.append('Syslog')
+                elif key in dxl_keys and 'DXL' not in sections:
+                    sections.append('DXL')
+                elif key in automation_keys and 'Automation' not in sections:
+                    sections.append('Automation')
+                elif key in sanity_keys and 'Sanity' not in sections:
+                    sections.append('Sanity')
         try:
             from utils.cef_logger import refresh_cef_udp_target
             udp_enabled = _get_setting('syslog_udp_enabled', 'false').lower() == 'true'
@@ -231,6 +250,95 @@ def save_settings():
         return _api_ok(message='Settings saved')
     except Exception as e:
         logging.exception('api_admin_save_settings failed')
+        return _api_error(str(e), 500)
+
+
+def _rewrite_dxl_config_certs_section(content: str, certs_dir: str) -> str:
+    """Rewrite [Certs] section in dxlclient.config to use certs_dir paths. Leaves [Brokers] etc. unchanged."""
+    certs_dir = os.path.abspath(certs_dir)
+    broker_crt = os.path.join(certs_dir, 'brokercerts.crt').replace('\\', '/')
+    client_crt = os.path.join(certs_dir, 'client.crt').replace('\\', '/')
+    client_key = os.path.join(certs_dir, 'client.key').replace('\\', '/')
+    lines = content.replace('\r\n', '\n').split('\n')
+    out = []
+    in_certs = False
+    for line in lines:
+        if line.strip().lower() == '[certs]':
+            in_certs = True
+            out.append(line)
+            out.append(f'BrokerCertChain={broker_crt}')
+            out.append(f'CertFile={client_crt}')
+            out.append(f'PrivateKey={client_key}')
+            continue
+        if in_certs and line.strip().lower().startswith(('brokercertchain=', 'certfile=', 'privatekey=')):
+            continue
+        if in_certs and line.strip().startswith('[') and 'certs' not in line.strip().lower():
+            in_certs = False
+        out.append(line)
+    return '\n'.join(out)
+
+
+@bp.route('/dxl/upload', methods=['POST'])
+@admin_required
+def dxl_upload():
+    """Upload ePO DXL files one by one. Saves to fixed directory and sets dxl_config_path."""
+    _api_ok, _api_error, _set_setting, audit_log = _from_app('_api_ok', '_api_error', '_set_setting', 'audit_log')
+    DXL_DIR, = _from_app('DXL_DIR')
+    try:
+        config_file = request.files.get('config_file')
+        broker_certs = request.files.get('broker_certs')
+        client_cert = request.files.get('client_cert')
+        client_key = request.files.get('client_key')
+        if not any((config_file and config_file.filename), (broker_certs and broker_certs.filename), (client_cert and client_cert.filename), (client_key and client_key.filename)):
+            return _api_error('Upload at least one file: config file, broker certs, client cert, or client key.'), 400
+        os.makedirs(DXL_DIR, exist_ok=True)
+        config_path = os.path.join(DXL_DIR, 'dxlclient.config')
+        broker_path = os.path.join(DXL_DIR, 'brokercerts.crt')
+        client_crt_path = os.path.join(DXL_DIR, 'client.crt')
+        client_key_path = os.path.join(DXL_DIR, 'client.key')
+        if config_file and config_file.filename:
+            content = config_file.read()
+            if isinstance(content, bytes):
+                content = content.decode('utf-8', errors='replace')
+            content = _rewrite_dxl_config_certs_section(content, DXL_DIR)
+            with open(config_path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(content)
+        if broker_certs and broker_certs.filename:
+            broker_certs.save(broker_path)
+        if client_cert and client_cert.filename:
+            client_cert.save(client_crt_path)
+        if client_key and client_key.filename:
+            client_key.save(client_key_path)
+            try:
+                os.chmod(client_key_path, 0o600)
+            except OSError:
+                pass
+        abs_config = os.path.abspath(config_path)
+        if config_file and config_file.filename:
+            _set_setting('dxl_config_path', abs_config)
+            audit_log('admin_dxl_upload', f'by={current_user.username} path={abs_config}')
+            return _api_ok(message='Files saved. Config path updated.', data={'dxl_config_path': abs_config})
+        audit_log('admin_dxl_upload', f'by={current_user.username} certs_only')
+        return _api_ok(message='Certificate files saved. Upload the config file to set the path.', data={'dxl_config_path': _from_app('_get_setting')[0]('dxl_config_path', '')})
+    except Exception as e:
+        logging.exception('admin dxl_upload failed')
+        return _api_error(str(e), 500)
+
+
+@bp.route('/dxl/test', methods=['POST'])
+@admin_required
+def dxl_test():
+    """Run DXL connection test step-by-step; return list of steps for Admin UI."""
+    _api_ok, _api_error = _from_app('_api_ok', '_api_error')
+    try:
+        from utils.dxl_tie import test_dxl_connection_steps
+        data = request.get_json() or {}
+        config_path = (data.get('dxl_config_path') or '').strip()
+        steps = test_dxl_connection_steps(config_path)
+        success = all(s.get('status') == 'ok' for s in steps)
+        return _api_ok(data={'success': success, 'steps': steps})
+    except Exception as e:
+        logging.exception('admin dxl_test failed')
         return _api_error(str(e), 500)
 
 
@@ -641,12 +749,27 @@ def admin_settings():
             'syslog_udp_enabled': _get_setting('syslog_udp_enabled', 'false'),
             'syslog_udp_host': _get_setting('syslog_udp_host', ''),
             'syslog_udp_port': _get_setting('syslog_udp_port', '514'),
+            'dxl_enabled': _get_setting('dxl_enabled', 'false'),
+            'dxl_config_path': _get_setting('dxl_config_path', ''),
+            'automation_fireeye_enabled': _get_setting('automation_fireeye_enabled', 'false'),
+            'automation_fireeye_appliances': _get_setting('automation_fireeye_appliances', '[]'),
         }
         return render_template('admin/settings.html', settings=settings)
     except Exception:
         logging.exception('admin_settings page failed')
         from flask import abort
         abort(500)
+
+
+@pages_bp.route('/sanity')
+@admin_required_page
+def admin_sanity():
+    """Admin Sanity Check page - behaviour for critical anomalies (block/warn)."""
+    _get_setting, = _from_app('_get_setting')
+    mode = _get_setting('sanity_check_mode', 'block_non_admin').strip().lower()
+    if mode not in ('block_all', 'block_non_admin', 'warn_all'):
+        mode = 'block_non_admin'
+    return render_template('admin/sanity.html', sanity_check_mode=mode)
 
 
 @pages_bp.route('/allowlist')

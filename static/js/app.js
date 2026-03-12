@@ -433,6 +433,9 @@ function showToast(message, type = 'success') {
     iconSpan.textContent = icons[type] || '';
     const msgSpan = document.createElement('span');
     msgSpan.textContent = message;
+    if ((typeof message === 'string') && message.indexOf('\n') !== -1) {
+        msgSpan.style.whiteSpace = 'pre-line';
+    }
     const progressSpan = document.createElement('span');
     progressSpan.className = 'toast-progress';
     toast.appendChild(iconSpan);
