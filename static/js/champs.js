@@ -190,7 +190,10 @@
                 const row = rowTpl.content.cloneNode(true);
                 const textInp = row.querySelector('.champs-ticker-msg-text');
                 const colorInp = row.querySelector('.champs-ticker-msg-color');
-                if (textInp) textInp.setAttribute('data-idx', i);
+                if (textInp) {
+                    textInp.setAttribute('data-idx', i);
+                    if (typeof applyAutoDir === 'function') applyAutoDir(textInp);
+                }
                 if (colorInp) colorInp.setAttribute('data-idx', i);
                 rowsContainer.appendChild(row);
             }
@@ -203,13 +206,10 @@
                 const messages = (j.messages || []).slice(0, ROWS);
                 rowsContainer.querySelectorAll('.champs-ticker-msg-text').forEach((inp, i) => {
                     inp.value = (messages[i] && messages[i].text) || '';
+                    if (typeof detectTextDir === 'function') inp.dir = detectTextDir(inp.value);
                 });
                 rowsContainer.querySelectorAll('.champs-ticker-msg-color').forEach((inp, i) => {
                     inp.value = (messages[i] && messages[i].color) || '#ffffff';
-                });
-                rowsContainer.querySelectorAll('.champs-ticker-msg-dir').forEach((sel, i) => {
-                    const d = (messages[i] && (messages[i].dir || messages[i].direction)) || 'ltr';
-                    sel.value = (d === 'rtl') ? 'rtl' : 'ltr';
                 });
             } catch (e) { /* leave empty */ }
             modal.classList.remove('hidden');
@@ -222,10 +222,9 @@
             rowsContainer.querySelectorAll('.champs-ticker-msg-row').forEach((row, i) => {
                 const textInp = row.querySelector('.champs-ticker-msg-text');
                 const colorInp = row.querySelector('.champs-ticker-msg-color');
-                const dirSel = row.querySelector('.champs-ticker-msg-dir');
                 const text = (textInp && textInp.value) ? textInp.value.trim() : '';
                 const color = (colorInp && colorInp.value) ? colorInp.value : '#ffffff';
-                const dir = (dirSel && dirSel.value === 'rtl') ? 'rtl' : 'ltr';
+                const dir = (typeof detectTextDir === 'function') ? detectTextDir(text) : 'ltr';
                 messages.push({ text: text, color: color, dir: dir });
             });
             try {

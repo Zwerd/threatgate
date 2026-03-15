@@ -340,7 +340,7 @@ async function addSingleToStaging() {
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticketEsc}</td>
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analystEsc}</td>
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${dateEsc}</td>
-            <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment">${commentEsc}</td>
+            <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment" dir="${typeof detectTextDir==='function'?detectTextDir(commentEsc):'auto'}">${commentEsc}</td>
             <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="expiration">${expirationEsc}</td>
             <td class="border border-white/10 px-3 py-2">
                 <div class="flex items-center gap-1.5 justify-center flex-wrap">
@@ -415,6 +415,9 @@ function _enableStagingEdit(row, btn) {
         if (!STAGING_EDITABLE_FIELDS.has(field)) return;
         if (field === 'expiration') return;
         c.setAttribute('contenteditable', 'true');
+        if (field === 'comment' && typeof detectTextDir === 'function') {
+            c.addEventListener('input', function() { this.dir = detectTextDir(this.textContent); });
+        }
     });
     if (expCell) {
         const currentVal = (expCell.textContent || '').trim();
@@ -622,7 +625,7 @@ document.getElementById('csvPreviewBtn').addEventListener('click', async () => {
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticket}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analyst}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${date}</td>
-                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment">${comment}</td>
+                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment" dir="${typeof detectTextDir==='function'?detectTextDir(comment):'auto'}">${comment}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="expiration">${expiration}</td>
                     <td class="border border-white/10 px-3 py-2">
                         <div class="flex items-center gap-1.5 justify-center flex-wrap">
@@ -824,7 +827,7 @@ document.getElementById('txtPreviewBtn').addEventListener('click', async () => {
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticket}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analyst}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${date}</td>
-                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment">${comment}</td>
+                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment" dir="${typeof detectTextDir==='function'?detectTextDir(comment):'auto'}">${comment}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="expiration">${expiration}</td>
                     <td class="border border-white/10 px-3 py-2">
                         <div class="flex items-center gap-1.5 justify-center flex-wrap">
@@ -949,7 +952,7 @@ document.getElementById('pastePreviewBtn').addEventListener('click', async () =>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="ticket_id">${ticket}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="analyst">${analyst}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="date">${date}</td>
-                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment">${comment}</td>
+                    <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="comment" dir="${typeof detectTextDir==='function'?detectTextDir(comment):'auto'}">${comment}</td>
                     <td class="border border-white/10 px-3 py-2 text-sm" contenteditable="false" data-field="expiration">${expiration}</td>
                     <td class="border border-white/10 px-3 py-2">
                         <div class="flex items-center gap-1.5 justify-center flex-wrap">
@@ -1042,3 +1045,14 @@ window.attachStagingRowActionsForRow = attachStagingRowActionsForRow;
 window.validateStagingItem = validateStagingItem;
 window.setBulkUploadMode = setBulkUploadMode;
 window.addSingleToStaging = addSingleToStaging;
+
+// Auto-detect RTL/LTR direction for all comment fields
+if (typeof initAutoDirFields === 'function') {
+    initAutoDirFields([
+        'iocComment',          // Single mode
+        'txtDefaultComment',   // TXT mode
+        'csvComment',          // CSV mode
+        'pasteDefaultComment', // Paste mode
+        'yaraComment',         // YARA upload
+    ]);
+}

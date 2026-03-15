@@ -127,7 +127,7 @@
                     return `
                     <tr class="border border-white/10">
                         <td class="border border-white/10 px-4 py-2 text-sm font-mono">${escapeHtml(f.filename)}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeHtml((f.comment || '').trim()).replace(/"/g, '&quot;')}">${escapeHtml(f.comment || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeHtml((f.comment || '').trim()).replace(/"/g, '&quot;')}" dir="${typeof detectTextDir==='function'?detectTextDir(f.comment||''):'auto'}">${escapeHtml(f.comment || '-')}</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${f.size_kb} KB</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '')}</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.user || '-')}</td>
@@ -316,7 +316,7 @@
                 tbody.innerHTML = result.files.map(f => `
                     <tr class="border border-white/10">
                         <td class="border border-white/10 px-4 py-2 text-sm font-mono">${escapeHtml(f.filename)}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}">${escapeHtml(f.comment || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}" dir="${typeof detectTextDir==='function'?detectTextDir(f.comment||''):'auto'}">${escapeHtml(f.comment || '-')}</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '-')}</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.user || '-')}</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.ticket_id || '-')}</td>
@@ -359,7 +359,7 @@
                 tbody.innerHTML = result.files.map(f => `
                     <tr class="border border-white/10">
                         <td class="border border-white/10 px-4 py-2 text-sm font-mono">${escapeHtml(f.filename)}</td>
-                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}">${escapeHtml(f.comment || '-')}</td>
+                        <td class="border border-white/10 px-4 py-2 text-sm text-secondary truncate max-w-xs" title="${escapeAttr((f.comment || '').trim())}" dir="${typeof detectTextDir==='function'?detectTextDir(f.comment||''):'auto'}">${escapeHtml(f.comment || '-')}</td>
                         <td class="border border-white/10 px-4 py-2 text-sm">${escapeHtml(f.upload_date || '-')}</td>
                         <td class="border border-white/10 px-4 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/40">Pending</span></td>
                         <td class="border border-white/10 px-3 py-2">
@@ -479,7 +479,9 @@
         document.getElementById('yaraMetaFilename').value = filename;
         document.getElementById('yaraMetaDisplay').value = filename;
         document.getElementById('yaraMetaTicketId').value = ticketId || '';
-        document.getElementById('yaraMetaComment').value = comment || '';
+        const yaraMetaCommentEl = document.getElementById('yaraMetaComment');
+        yaraMetaCommentEl.value = comment || '';
+        if (typeof detectTextDir === 'function') yaraMetaCommentEl.dir = detectTextDir(comment || '');
         const select = document.getElementById('yaraMetaCampaignSelect');
         select.innerHTML = '<option value="">-- None --</option>';
         fetch('/api/campaigns').then(r => r.json()).then(d => {
@@ -528,6 +530,8 @@
             }
         } catch (err) { showToast(t('toast.error_generic') + ': ' + err.message, 'error'); }
     });
+
+    if (typeof applyAutoDir === 'function') applyAutoDir(document.getElementById('yaraMetaComment'));
 
     global.loadYaraRules = loadYaraRules;
     global.loadYaraPending = loadYaraPending;

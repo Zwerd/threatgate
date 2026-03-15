@@ -41,7 +41,6 @@
                 document.getElementById('playbookEditName').value = '';
                 document.getElementById('playbookEditGroupId').value = 'new-group-' + Date.now();
                 document.getElementById('playbookEditGroupTags').value = '';
-                document.getElementById('playbookEditGroupDir').value = 'ltr';
                 document.getElementById('playbookEditGroupSites').innerHTML = '';
                 groupSitesData = [];
             } else if (type === 'workflow') {
@@ -52,7 +51,6 @@
                 if (workflowFields) workflowFields.classList.remove('hidden');
                 document.getElementById('playbookEditWorkflowName').value = '';
                 document.getElementById('playbookEditWorkflowId').value = 'new-workflow-' + Date.now();
-                document.getElementById('playbookEditWorkflowDir').value = 'ltr';
                 document.getElementById('playbookEditWorkflowContent').value = '';
                 updatePlaybookWorkflowPreview();
             } else {
@@ -66,7 +64,6 @@
                 document.getElementById('playbookEditUrl').value = '';
                 document.getElementById('playbookEditTags').value = '';
                 document.getElementById('playbookEditEssential').checked = false;
-                document.getElementById('playbookEditSiteDir').value = 'ltr';
                 document.getElementById('playbookEditDescription').value = '';
                 document.getElementById('playbookEditExamples').value = '';
                 document.getElementById('playbookEditTips').value = '';
@@ -94,7 +91,6 @@
                 document.getElementById('playbookEditName').value = item.name || '';
                 document.getElementById('playbookEditGroupId').value = item.id || '';
                 document.getElementById('playbookEditGroupTags').value = Array.isArray(item.tags) ? item.tags.join(', ') : '';
-                document.getElementById('playbookEditGroupDir').value = item.dir === 'rtl' ? 'rtl' : 'ltr';
                 groupSitesData = JSON.parse(JSON.stringify(item.sites || []));
                 groupSitesData.forEach(function (site) {
                     var d = site.description || '';
@@ -111,7 +107,6 @@
                 if (workflowFields) workflowFields.classList.remove('hidden');
                 document.getElementById('playbookEditWorkflowName').value = item.name || '';
                 document.getElementById('playbookEditWorkflowId').value = item.id || '';
-                document.getElementById('playbookEditWorkflowDir').value = item.dir === 'rtl' ? 'rtl' : 'ltr';
                 var rawContent = item.content ?? '';
                 var contentForEdit = rawContent;
                 if (rawContent.trim().startsWith('<')) {
@@ -134,7 +129,6 @@
                 document.getElementById('playbookEditUrl').value = item.url || '';
                 document.getElementById('playbookEditTags').value = Array.isArray(item.tags) ? item.tags.join(', ') : '';
                 document.getElementById('playbookEditEssential').checked = !!item.isEssential;
-                document.getElementById('playbookEditSiteDir').value = item.dir === 'rtl' ? 'rtl' : 'ltr';
                 var rawDesc = item.description ?? '';
                 var descForEdit = rawDesc;
                 if (rawDesc.trim().startsWith('<')) {
@@ -155,7 +149,18 @@
                 document.getElementById('playbookEditTips').value = tipsForEdit;
             }
         }
+        _refreshPlaybookEditDirs();
         modal.classList.remove('hidden');
+    }
+
+    function _refreshPlaybookEditDirs() {
+        if (typeof detectTextDir !== 'function') return;
+        ['playbookEditName', 'playbookEditDescription', 'playbookEditExamples',
+         'playbookEditTips', 'playbookEditWorkflowContent', 'playbookEditWorkflowName'
+        ].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.dir = detectTextDir(el.value);
+        });
     }
 
     function closePlaybookEditModal() {
@@ -230,13 +235,12 @@
                 showToast('Name and ID are required', 'error');
                 return;
             }
-            const groupDir = document.getElementById('playbookEditGroupDir').value;
             item = {
                 type: 'group',
                 id: id,
                 name: name,
                 tags: tags,
-                dir: groupDir === 'rtl' ? 'rtl' : 'ltr',
+                dir: (typeof detectTextDir === 'function') ? detectTextDir(name) : 'ltr',
                 sites: groupSitesData.filter(s => s.name.trim() && s.url.trim())
             };
             if (currentEditIndex === -1) {
@@ -253,12 +257,11 @@
                 showToast('Name and ID are required', 'error');
                 return;
             }
-            const workflowDir = document.getElementById('playbookEditWorkflowDir').value;
             item = {
                 type: 'workflow',
                 id: id,
                 name: name,
-                dir: workflowDir === 'rtl' ? 'rtl' : 'ltr',
+                dir: (typeof detectTextDir === 'function') ? detectTextDir(content || name) : 'ltr',
                 content: content
             };
             if (currentEditIndex === -1) {
@@ -277,15 +280,15 @@
             }
             const tagsStr = document.getElementById('playbookEditTags').value.trim();
             const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [];
-            const siteDir = document.getElementById('playbookEditSiteDir').value;
+            const descVal = document.getElementById('playbookEditDescription').value;
             item = {
                 id: id,
                 name: name,
                 url: url,
                 isEssential: document.getElementById('playbookEditEssential').checked,
                 tags: tags,
-                dir: siteDir === 'rtl' ? 'rtl' : 'ltr',
-                description: document.getElementById('playbookEditDescription').value,
+                dir: (typeof detectTextDir === 'function') ? detectTextDir(descVal || name) : 'ltr',
+                description: descVal,
                 examples: document.getElementById('playbookEditExamples').value,
                 tips: document.getElementById('playbookEditTips').value
             };
@@ -481,6 +484,14 @@
                 }
             });
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof applyAutoDir === 'function') {
+            ['playbookEditName', 'playbookEditDescription', 'playbookEditExamples',
+             'playbookEditTips', 'playbookEditWorkflowContent', 'playbookEditWorkflowName'
+            ].forEach(function(id) { applyAutoDir(document.getElementById(id)); });
+        }
+    });
 
     window.openPlaybookEditModal = openPlaybookEditModal;
     window.closePlaybookEditModal = closePlaybookEditModal;

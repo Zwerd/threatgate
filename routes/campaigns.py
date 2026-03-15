@@ -144,10 +144,10 @@ def link_ioc_to_campaign():
     """Link an existing IOC to a campaign by value. Expects {ioc_value, campaign_id}."""
     from utils.validation_messages import MSG_IOC_NOT_FOUND
     (
-        _commit_with_retry, audit_log, _log_champs_event,
+        _commit_with_retry, audit_log, _log_ioc_history, _log_champs_event,
         _capture_champs_before, _detect_champs_changes, refresh_champ_score_for_user,
     ) = _from_app(
-        '_commit_with_retry', 'audit_log', '_log_champs_event',
+        '_commit_with_retry', 'audit_log', '_log_ioc_history', '_log_champs_event',
         '_capture_champs_before', '_detect_champs_changes', 'refresh_champ_score_for_user',
     )
     try:
@@ -168,7 +168,17 @@ def link_ioc_to_campaign():
         champs_before = _capture_champs_before(current_user.id, (current_user.username or '').lower()) if current_user and current_user.is_authenticated else None
 
         had_campaign = bool(ioc.campaign_id)
+        old_campaign_id = ioc.campaign_id
+        old_campaign_name = ''
+        if old_campaign_id:
+            old_camp = db.session.get(Campaign, old_campaign_id)
+            old_campaign_name = (old_camp.name if old_camp else '')
         ioc.campaign_id = campaign_id
+        if old_campaign_id != campaign_id:
+            edit_changes = [{'field': 'campaign', 'old': old_campaign_name or '\u2014', 'new': campaign.name}]
+            _log_ioc_history(ioc.type, ioc_value, 'edited',
+                             current_user.username if current_user and current_user.is_authenticated else None,
+                             {'changes': edit_changes})
         _commit_with_retry()
         audit_log('IOC_CAMPAIGN_LINK', f'ioc_value={ioc_value[:80]} campaign={campaign.name} type={ioc.type}')
         # Champs Smart Effort: reward first-time campaign linking as a separate effort event

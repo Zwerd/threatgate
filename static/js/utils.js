@@ -56,7 +56,40 @@
         }
     }
 
+    /**
+     * Detect text direction from the first letter in the string.
+     * Returns 'rtl' if the first letter is Hebrew/Arabic, otherwise 'ltr'.
+     */
+    function detectTextDir(text) {
+        if (!text) return 'ltr';
+        const m = text.match(/[a-zA-Z\u0590-\u05FF\u0600-\u06FF\u0700-\u074F]/);
+        if (!m) return 'ltr';
+        const cp = m[0].codePointAt(0);
+        return (cp >= 0x0590 && cp <= 0x074F) ? 'rtl' : 'ltr';
+    }
+
+    /**
+     * Apply auto-dir detection on an input/textarea element.
+     * Sets dir attribute live as the user types.
+     */
+    function applyAutoDir(el) {
+        if (!el) return;
+        function update() { el.dir = detectTextDir(el.value); }
+        el.addEventListener('input', update);
+        update();
+    }
+
+    /**
+     * Apply auto-dir to multiple elements by ID.
+     */
+    function initAutoDirFields(ids) {
+        ids.forEach(function(id) { applyAutoDir(document.getElementById(id)); });
+    }
+
     global.escapeHtml = escapeHtml;
     global.escapeAttr = escapeAttr;
     global.copyToClipboard = copyToClipboard;
+    global.detectTextDir = detectTextDir;
+    global.applyAutoDir = applyAutoDir;
+    global.initAutoDirFields = initAutoDirFields;
 })(typeof window !== 'undefined' ? window : this);

@@ -205,7 +205,7 @@ def api_feed_pulse():
     """Feed Pulse: diff view of incoming (new) vs outgoing (expired) IOCs in a time window."""
     (check_allowlist,) = _from_app('check_allowlist')
 
-    hours = min(max(1, int(request.args.get('hours', 24))), 168)  # 1-168 hours
+    hours = min(max(1, int(request.args.get('hours', 24))), 8760)  # 1h – 1 year
     ioc_type = (request.args.get('type') or 'all').strip()
     if ioc_type != 'all' and ioc_type not in IOC_FILES:
         return jsonify({'success': False, 'message': 'Invalid type'}), 400
@@ -382,10 +382,15 @@ def api_feed_pulse():
         pass
     anomalies = [a for a in anomalies if (a.get('value', ''), a.get('ioc_type', ''), a.get('type', '')) not in excl_set]
 
-    # Exclusions list for orange "Excluded" panel (value, type, anomaly_type, excluded_by, excluded_at, id)
+    # Exclusions list for orange "Excluded" panel – filtered by period & IOC type
     excl_list = []
     try:
-        for e in SanityExclusion.query.order_by(SanityExclusion.excluded_at.desc()).limit(200).all():
+        excl_q = SanityExclusion.query.filter(
+            db.or_(SanityExclusion.excluded_at >= cutoff, SanityExclusion.excluded_at.is_(None))
+        )
+        if ioc_type != 'all':
+            excl_q = excl_q.filter(SanityExclusion.ioc_type == ioc_type)
+        for e in excl_q.order_by(SanityExclusion.excluded_at.desc()).limit(200).all():
             excl_list.append({
                 'id': e.id,
                 'value': e.value,

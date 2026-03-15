@@ -212,13 +212,13 @@
 
         row.innerHTML = `
             <td class="${typeCellClass}">${icon} ${result.file_type}</td>
-            <td class="border border-white/10 px-4 py-2 font-mono"><span class="inline-flex items-center gap-1 flex-wrap">${iocDisplay} <button type="button" class="copy-ioc-btn btn-cmd-neutral btn-cmd-sm ml-1" onclick="copyToClipboard(this.getAttribute('data-ioc'))" data-ioc="${iocAttr}" title="${t('actions.copy')}" aria-label="${t('actions.copy')}">${t('actions.copy')}</button></span></td>
+            <td class="border border-white/10 px-4 py-2 font-mono" title="${iocAttr}"><span class="inline-flex items-center gap-1">${iocDisplay} <button type="button" class="copy-ioc-btn btn-cmd-neutral btn-cmd-sm ml-1 flex-shrink-0" onclick="copyToClipboard(this.getAttribute('data-ioc'))" data-ioc="${iocAttr}" title="${t('actions.copy')}" aria-label="${t('actions.copy')}">${t('actions.copy')}</button></span></td>
             <td class="border border-white/10 px-4 py-2 text-sm">${result.date || 'N/A'}</td>
-            <td class="border border-white/10 px-4 py-2 text-sm">${userDisplay}</td>
-            <td class="border border-white/10 px-4 py-2 text-sm font-mono">${ticketDisplay || '<span class="text-secondary">-</span>'}</td>
-            <td class="border border-white/10 px-4 py-2 text-sm">${commentDisplay}</td>
+            <td class="border border-white/10 px-4 py-2 text-sm" title="${escapeAttr(result.user || '')}">${userDisplay}</td>
+            <td class="border border-white/10 px-4 py-2 text-sm font-mono" title="${escapeAttr(result.ref || '')}">${ticketDisplay || '<span class="text-secondary">-</span>'}</td>
+            <td class="border border-white/10 px-4 py-2 text-sm" title="${escapeAttr(result.comment || '')}" dir="${typeof detectTextDir==='function'?detectTextDir(result.comment||''):'auto'}">${commentDisplay}</td>
             <td class="border border-white/10 px-4 py-2 text-sm">${tagsDisplay}</td>
-            <td class="border border-white/10 px-4 py-2 text-sm">${campaignDisplay || '<span class="text-secondary">-</span>'}</td>
+            <td class="border border-white/10 px-4 py-2 text-sm" title="${escapeAttr(result.campaign_name || '')}">${campaignDisplay || '<span class="text-secondary">-</span>'}</td>
             <td class="border border-white/10 px-4 py-2">${expirationBadge}</td>
             ${actionsCell}
         `;
@@ -391,7 +391,9 @@
         document.getElementById('editIocValue').value = iocValue;
         document.getElementById('editIocType').value = iocType;
         document.getElementById('editIocDisplay').value = `${iocType}: ${iocValue}`;
-        document.getElementById('editComment').value = comment;
+        const editCommentEl = document.getElementById('editComment');
+        editCommentEl.value = comment;
+        if (typeof detectTextDir === 'function') editCommentEl.dir = detectTextDir(comment);
         let expDisplay = expiration === 'NEVER' ? t('ttl.permanent') : expiration;
         document.getElementById('editExpiration').value = expDisplay;
         document.getElementById('editTicketId').value = ticketId || '';
@@ -513,7 +515,7 @@
             + '<span class="font-semibold text-amber-200 text-xs">' + by + '</span>'
             + '<span class="text-secondary text-xs">' + dateStr + '</span>'
             + '</div>'
-            + '<div class="text-white/90 whitespace-pre-wrap break-words">' + escapeHtml(note.content) + '</div>'
+            + '<div class="text-white/90 whitespace-pre-wrap break-words" dir="' + (typeof detectTextDir==='function'?detectTextDir(note.content):'auto') + '">' + escapeHtml(note.content) + '</div>'
             + '</div>';
     }
 
@@ -591,7 +593,8 @@
                     const arrow = (typeof t === 'function' && t('history.to')) ? t('history.to') : '→';
                     extra += ' <div class="mt-2 space-y-1 text-sm">' + ev.payload.changes.map(function(c) {
                         const label = fieldLabels[c.field] || c.field;
-                        return '<div class="text-cyan-200/90"><span class="font-semibold">' + escapeHtml(label) + ':</span> <span class="text-secondary line-through">' + escapeHtml(String(c.old)) + '</span> ' + escapeHtml(arrow) + ' <span class="text-green-200/90">' + escapeHtml(String(c.new)) + '</span></div>';
+                        const dirAttr = (c.field === 'comment' && typeof detectTextDir === 'function') ? ' dir="' + detectTextDir(String(c.new)) + '"' : '';
+                        return '<div class="text-cyan-200/90"' + dirAttr + '><span class="font-semibold">' + escapeHtml(label) + ':</span> <span class="text-secondary line-through">' + escapeHtml(String(c.old)) + '</span> ' + escapeHtml(arrow) + ' <span class="text-green-200/90">' + escapeHtml(String(c.new)) + '</span></div>';
                     }).join('') + '</div>';
                 }
                 return '<div class="border border-white/10 rounded px-3 py-2 bg-tertiary/50"><span class="font-semibold">' + (labels[ev.event_type] || ev.event_type) + '</span> - ' + byLine + ' <span class="text-secondary">' + atStr + '</span>' + extra + '</div>';
@@ -645,6 +648,12 @@
 
     if (iocHistoryClose) iocHistoryClose.addEventListener('click', () => { if (iocHistoryModal) iocHistoryModal.classList.add('hidden'); });
     if (iocHistoryModal) iocHistoryModal.addEventListener('click', (e) => { if (e.target === iocHistoryModal) iocHistoryModal.classList.add('hidden'); });
+
+    // Auto-detect RTL/LTR for Edit modal comment field and Add Note textarea
+    if (typeof applyAutoDir === 'function') {
+        applyAutoDir(document.getElementById('editComment'));
+        applyAutoDir(document.getElementById('addNoteContent'));
+    }
 
     global.performSearch = performSearch;
     global.openEditModal = openEditModal;

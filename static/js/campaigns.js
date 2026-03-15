@@ -129,24 +129,15 @@
 
     function openCampaignEditModal(id, name, desc, dir) {
         document.getElementById('campaignEditId').value = id;
-        document.getElementById('campaignEditName').value = name || '';
-        document.getElementById('campaignEditDesc').value = desc || '';
-        const dirSel = document.getElementById('campaignEditDir');
-        const d = dir || 'ltr';
-        if (dirSel) dirSel.value = d;
         const nameInp = document.getElementById('campaignEditName');
         const descInp = document.getElementById('campaignEditDesc');
-        if (nameInp) nameInp.setAttribute('dir', d);
-        if (descInp) descInp.setAttribute('dir', d);
+        nameInp.value = name || '';
+        descInp.value = desc || '';
+        if (typeof detectTextDir === 'function') {
+            nameInp.dir = detectTextDir(name || '');
+            descInp.dir = detectTextDir(desc || '');
+        }
         document.getElementById('campaignEditModal').classList.remove('hidden');
-    }
-
-    function applyCampaignFormDir(formPrefix, dir) {
-        const d = dir || 'ltr';
-        const nameInp = document.getElementById(formPrefix === 'create' ? 'campaignName' : 'campaignEditName');
-        const descInp = document.getElementById(formPrefix === 'create' ? 'campaignDesc' : 'campaignEditDesc');
-        if (nameInp) nameInp.setAttribute('dir', d);
-        if (descInp) descInp.setAttribute('dir', d);
     }
 
     function closeCampaignEditModal() {
@@ -202,9 +193,6 @@
         closeCampaignDeleteModal();
         if (cid) doDeleteCampaign(cid);
     });
-    document.getElementById('campaignEditDir')?.addEventListener('change', function() {
-        applyCampaignFormDir('edit', this.value);
-    });
     document.getElementById('campaignEditModal')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeCampaignEditModal();
     });
@@ -213,14 +201,13 @@
         const id = document.getElementById('campaignEditId').value;
         const name = document.getElementById('campaignEditName').value.trim();
         const description = document.getElementById('campaignEditDesc').value.trim();
-        const dirSel = document.getElementById('campaignEditDir');
-        const dir = dirSel ? dirSel.value : 'ltr';
+        const dir = (typeof detectTextDir === 'function') ? detectTextDir(description || name) : 'ltr';
         if (!name) { showToast(t('toast.campaign_name_required'), 'error'); return; }
         try {
             const r = await fetch(`/api/campaigns/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, description, dir: dir || 'ltr' })
+                body: JSON.stringify({ name, description, dir })
             });
             const d = await r.json().catch(() => ({}));
             showToast(d.message || (d.success ? 'Updated' : 'Failed'), d.success ? 'success' : 'error');
@@ -304,9 +291,6 @@
         window.location.href = `/api/campaigns/${currentCampaignId}/export-json`;
     });
 
-    document.getElementById('campaignCreateDir')?.addEventListener('change', function() {
-        applyCampaignFormDir('create', this.value);
-    });
     document.getElementById('campaignCreateForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.target;
@@ -314,14 +298,13 @@
         if (submitBtn && submitBtn.disabled) return;  // prevent double submit
         const name = document.getElementById('campaignName').value.trim();
         const description = document.getElementById('campaignDesc').value.trim();
-        const dirSel = document.getElementById('campaignCreateDir');
-        const dir = dirSel ? dirSel.value : 'ltr';
+        const dir = (typeof detectTextDir === 'function') ? detectTextDir(description || name) : 'ltr';
         if (submitBtn) submitBtn.disabled = true;
         try {
             const res = await fetch('/api/campaigns', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, description: description || undefined, dir: dir || 'ltr' })
+                body: JSON.stringify({ name, description: description || undefined, dir })
             });
             const data = await res.json().catch(() => ({}));
             if (data.success) {
@@ -331,7 +314,6 @@
                 }
                 document.getElementById('campaignName').value = '';
                 document.getElementById('campaignDesc').value = '';
-                if (dirSel) dirSel.value = 'ltr';
                 loadCampaigns();
             } else {
                 showToast(data.message || 'Failed', 'error');
@@ -345,12 +327,16 @@
 
     document.getElementById('campaignLinkForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const form = e.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn && submitBtn.disabled) return;
         const ioc_value = document.getElementById('linkIocValue').value.trim();
         const campaign_id = parseInt(document.getElementById('linkCampaignSelect').value, 10);
         if (!campaign_id) {
             showToast(t('toast.select_campaign'), 'error');
             return;
         }
+        if (submitBtn) submitBtn.disabled = true;
         try {
             const res = await fetch('/api/campaigns/link', {
                 method: 'POST',
@@ -371,8 +357,17 @@
             }
         } catch (err) {
             showToast(t('toast.error_generic') + ': ' + err.message, 'error');
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
         }
     });
+
+    if (typeof applyAutoDir === 'function') {
+        applyAutoDir(document.getElementById('campaignName'));
+        applyAutoDir(document.getElementById('campaignDesc'));
+        applyAutoDir(document.getElementById('campaignEditName'));
+        applyAutoDir(document.getElementById('campaignEditDesc'));
+    }
 
     global.populateCampaignDropdowns = populateCampaignDropdowns;
     global.loadUsersForAssignDropdown = loadUsersForAssignDropdown;

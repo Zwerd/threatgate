@@ -3182,3 +3182,87 @@ button:focus-visible {
     border-color: rgba(202, 138, 4, 0.35);
     color: #ca8a04;
 }
+
+/* ── Search Results Table: fixed layout + sticky Actions column ── */
+#searchResults .overflow-x-auto {
+    position: relative;
+}
+#searchResults table {
+    table-layout: fixed;
+    min-width: 1100px;
+    width: 100%;
+}
+#searchResults th,
+#searchResults td {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+/* Column widths (10 columns) */
+#searchResults th:nth-child(1),
+#searchResults td:nth-child(1)  { width: 80px; }   /* Found in */
+#searchResults th:nth-child(2),
+#searchResults td:nth-child(2)  { width: 22%; }     /* IOC */
+#searchResults th:nth-child(3),
+#searchResults td:nth-child(3)  { width: 110px; }   /* Date */
+#searchResults th:nth-child(4),
+#searchResults td:nth-child(4)  { width: 80px; }    /* User */
+#searchResults th:nth-child(5),
+#searchResults td:nth-child(5)  { width: 90px; }    /* Ticket ID */
+#searchResults th:nth-child(6),
+#searchResults td:nth-child(6)  { width: 16%; }     /* Comment */
+#searchResults th:nth-child(7),
+#searchResults td:nth-child(7)  { width: 90px; }    /* Tags */
+#searchResults th:nth-child(8),
+#searchResults td:nth-child(8)  { width: 90px; }    /* Campaign */
+#searchResults th:nth-child(9),
+#searchResults td:nth-child(9)  { width: 110px; }   /* Expiration */
+#searchResults th:nth-child(10),
+#searchResults td:nth-child(10) { width: 220px; }   /* Actions */
+
+/* Sticky Actions column (last column) */
+#searchResults th:last-child,
+#searchResults td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    white-space: nowrap;
+}
+#searchResults th:last-child {
+    background: var(--bg-tertiary, #1e293b);
+}
+#searchResults td:last-child {
+    background: var(--bg-secondary, #000000);
+}
+#searchResults tr:hover td:last-child {
+    background: var(--bg-tertiary, #1e293b);
+}
+[data-theme="light"] #searchResults th:last-child {
+    background: var(--bg-tertiary, #ffffff);
+}
+[data-theme="light"] #searchResults td:last-child {
+    background: var(--bg-secondary, #ffffff);
+}
+[data-theme="light"] #searchResults tr:hover td:last-child {
+    background: var(--bg-tertiary, #ffffff);
+}
+/* Left shadow edge to visually separate sticky Actions */
+#searchResults th:last-child::before,
+#searchResults td:last-child::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, rgba(0,0,0,0.15));
+}
+[data-theme="light"] #searchResults th:last-child::before,
+[data-theme="light"] #searchResults td:last-child::before {
+    background: linear-gradient(to right, transparent, rgba(0,0,0,0.06));
+}
+/* IOC column: break-all for long unbroken strings (hashes, URLs without spaces) */
+#searchResults td:nth-child(2) {
+    word-break: break-all;
+}

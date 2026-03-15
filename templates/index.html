@@ -783,13 +783,6 @@
                                         <label class="block mb-1 text-sm font-medium" data-i18n="campaign.description">Description</label>
                                         <textarea id="campaignDesc" rows="2" class="w-full px-3 py-2 rounded" placeholder="Optional description" data-i18n-placeholder="campaign.desc_placeholder"></textarea>
                                     </div>
-                                    <div>
-                                        <label class="block mb-1 text-sm font-medium" data-i18n="campaign.text_direction">Text direction</label>
-                                        <select id="campaignCreateDir" class="w-full px-3 py-2 rounded bg-black/20 border border-white/10">
-                                            <option value="ltr" data-i18n="campaign.dir_ltr">LTR (left to right)</option>
-                                            <option value="rtl" data-i18n="campaign.dir_rtl">RTL (right to left)</option>
-                                        </select>
-                                    </div>
                                     <button type="submit" class="w-full btn-cmd-primary" data-i18n="campaign.create_btn">Create Campaign</button>
                                 </form>
                             </div>
@@ -869,6 +862,9 @@
                                 <option value="48" data-i18n="feedpulse.hours_48">Last 48h</option>
                                 <option value="72" data-i18n="feedpulse.hours_72">Last 72h</option>
                                 <option value="168" data-i18n="feedpulse.hours_168">Last 7 days</option>
+                                <option value="720" data-i18n="feedpulse.hours_720">Last 30 days</option>
+                                <option value="2160" data-i18n="feedpulse.hours_2160">Last 3 months</option>
+                                <option value="8760" data-i18n="feedpulse.hours_8760">Last year</option>
                             </select>
                             <button type="button" id="feedPulseRefreshBtn" class="btn-cmd-primary btn-cmd-sm" data-i18n="feedpulse.refresh">Refresh</button>
                             <button type="button" id="feedPulseExportBtn" class="btn-cmd-primary btn-cmd-sm" data-i18n="feedpulse.export_report">Export Report</button>
@@ -1246,13 +1242,6 @@
                             <input type="text" id="playbookEditGroupTags" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2" placeholder="News, Vuln, Reports">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold mb-1">Text direction</label>
-                            <select id="playbookEditGroupDir" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2">
-                                <option value="ltr">LTR (left to right)</option>
-                                <option value="rtl">RTL (right to left)</option>
-                            </select>
-                        </div>
-                        <div>
                             <label class="block text-sm font-semibold mb-2">Sites in Group</label>
                             <div id="playbookEditGroupSites" class="space-y-2 max-h-60 overflow-y-auto">
                                 <!-- Group sites will be rendered here -->
@@ -1286,13 +1275,6 @@
                             </label>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold mb-1">Text direction</label>
-                            <select id="playbookEditSiteDir" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2">
-                                <option value="ltr">LTR (left to right)</option>
-                                <option value="rtl">RTL (right to left)</option>
-                            </select>
-                        </div>
-                        <div>
                             <label class="block text-sm font-semibold mb-1">About & Purpose</label>
                             <textarea id="playbookEditDescription" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2" rows="3"></textarea>
                         </div>
@@ -1313,13 +1295,6 @@
                         <div>
                             <label class="block text-sm font-semibold mb-1">ID</label>
                             <input type="text" id="playbookEditWorkflowId" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 font-mono text-sm" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold mb-1">Text direction</label>
-                            <select id="playbookEditWorkflowDir" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2">
-                                <option value="ltr">LTR (left to right)</option>
-                                <option value="rtl">RTL (right to left)</option>
-                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-semibold mb-1">Content (Markdown)</label>
@@ -1552,10 +1527,6 @@
                 <template id="champsTickerMsgRowTpl">
                     <div class="champs-ticker-msg-row flex gap-2 items-center flex-wrap">
                         <input type="text" class="champs-ticker-msg-text flex-1 min-w-0 px-3 py-2 rounded-lg bg-tertiary border border-white/10" placeholder="Message text" maxlength="200">
-                        <select class="champs-ticker-msg-dir px-2 py-2 rounded-lg bg-tertiary border border-white/10 text-sm" title="Direction" data-i18n-title="champs.msg_dir_title">
-                            <option value="ltr" data-i18n="champs.msg_dir_ltr">LTR</option>
-                            <option value="rtl" data-i18n="champs.msg_dir_rtl">RTL</option>
-                        </select>
                         <input type="color" class="champs-ticker-msg-color w-12 h-10 rounded cursor-pointer border border-white/20" value="#ffffff" title="Color">
                     </div>
                 </template>
@@ -1598,13 +1569,6 @@
                 <div>
                     <label class="block mb-2 text-sm font-semibold" data-i18n="modal.description">Description</label>
                     <textarea id="campaignEditDesc" rows="3" class="w-full" placeholder="Optional description" data-i18n-placeholder="modal.desc_placeholder"></textarea>
-                </div>
-                <div>
-                    <label class="block mb-2 text-sm font-semibold" data-i18n="campaign.text_direction">Text direction</label>
-                    <select id="campaignEditDir" class="w-full px-3 py-2 rounded bg-black/20 border border-white/10">
-                        <option value="ltr" data-i18n="campaign.dir_ltr">LTR (left to right)</option>
-                        <option value="rtl" data-i18n="campaign.dir_rtl">RTL (right to left)</option>
-                    </select>
                 </div>
                 <div class="flex gap-2 justify-end">
                     <button type="button" id="campaignEditCancel" class="btn-cmd-neutral" data-i18n="modal.cancel">Cancel</button>
